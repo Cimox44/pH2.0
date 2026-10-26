@@ -1,0 +1,19 @@
+{
+  "name": "EGA Acido-Base — Emogasanalisi",
+  "short_name": "EGA",
+  "description": "Interpretazione emogasanalitica: disturbo primario, compenso, gap anionico, delta gap, Stewart, ossigenazione e ventilazione.",
+  "lang": "it",
+  "id": "./?app=ega-acido-base",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f2a3a",
+  "theme_color": "#0f2a3a",
+  "categories": ["medical", "health"],
+  "icons": [
+    { "src": "ega-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "ega-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "ega-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

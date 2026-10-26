@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EGA Acido-Base</title>
+<meta name="description" content="Emogasanalisi: disturbo primario, compenso, gap anionico, delta gap, Stewart, ossigenazione e ventilazione.">
+<meta name="theme-color" content="#0f2a3a">
+<link rel="manifest" href="ega-manifest.json">
+<link rel="icon" href="ega-icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="ega-icon-192.png">
+<link rel="stylesheet" href="ega-styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">pH</span>
+    <div><h1>EGA Acido-Base</h1><p class="sub">Interpretazione emogasanalitica completa</p></div>
+  </div>
+  <button id="themeBtn" class="icon-btn" aria-label="Cambia tema">◐</button>
+</header>
+
+<main>
+<!-- ================= CALCOLO ================= -->
+<section id="tab-calc" class="tab active" aria-label="Calcolatore">
+  <div class="toolbar">
+    <select id="caseSel" aria-label="Carica caso esempio"><option value="">Carica caso esempio…</option></select>
+    <button id="resetBtn" class="btn ghost">Azzera</button>
+  </div>
+
+  <form id="f" autocomplete="off" novalidate>
+    <details open class="grp"><summary>EGA arteriosa <span class="req">obbligatori: pH, PaCO₂</span></summary>
+      <div class="units"><span>Pressioni:</span>
+        <label><input type="radio" name="uP" value="mmHg" checked> mmHg</label>
+        <label><input type="radio" name="uP" value="kPa"> kPa</label>
+      </div>
+      <div class="grid">
+        <label class="f">pH<input name="pH" inputmode="decimal" placeholder="7.40"></label>
+        <label class="f">PaCO₂ <i class="u p">mmHg</i><input name="pco2" inputmode="decimal" placeholder="40"></label>
+        <label class="f">HCO₃⁻ <i class="u">mmol/L</i><input name="hco3" inputmode="decimal" placeholder="calcolato se vuoto"></label>
+        <label class="f">BE / SBE <i class="u">mmol/L</i><input name="be" inputmode="decimal" placeholder="calcolato se vuoto"></label>
+        <label class="f">PaO₂ <i class="u p">mmHg</i><input name="po2" inputmode="decimal" placeholder="90"></label>
+        <label class="f">FiO₂ <i class="u">0.21–1 o %</i><input name="fio2" inputmode="decimal" placeholder="0.21"></label>
+        <label class="f">SpO₂ <i class="u">%</i><input name="spo2" inputmode="decimal"></label>
+        <label class="f">SaO₂ <i class="u">%</i><input name="sao2" inputmode="decimal"></label>
+        <label class="f">Lattati <i class="u">mmol/L</i><input name="lac" inputmode="decimal"></label>
+        <label class="f">Hb <i class="u">g/dL</i><input name="hb" inputmode="decimal"></label>
+      </div>
+      <label class="f wide">Cronicità del disturbo respiratorio
+        <select name="chronicity">
+          <option value="auto">Automatica (dedotta dall'HCO₃⁻)</option>
+          <option value="acute">Acuta (&lt; 24–48 h)</option>
+          <option value="chronic">Cronica (&gt; 3–5 giorni)</option>
+        </select>
+      </label>
+    </details>
+
+    <details open class="grp"><summary>Elettroliti e albumina</summary>
+      <div class="units"><span>Albumina:</span>
+        <label><input type="radio" name="uA" value="gdl" checked> g/dL</label>
+        <label><input type="radio" name="uA" value="gl"> g/L</label>
+      </div>
+      <div class="grid">
+        <label class="f">Na⁺ <i class="u">mmol/L</i><input name="na" inputmode="decimal"></label>
+        <label class="f">K⁺ <i class="u">mmol/L</i><input name="k" inputmode="decimal"></label>
+        <label class="f">Cl⁻ <i class="u">mmol/L</i><input name="cl" inputmode="decimal"></label>
+        <label class="f">Albumina <i class="u a">g/dL</i><input name="alb" inputmode="decimal"></label>
+        <label class="f">Ca²⁺ ionizzato <i class="u">mmol/L</i><input name="ica" inputmode="decimal"></label>
+        <label class="f">Mg²⁺ <i class="u">mmol/L</i><input name="mg" inputmode="decimal"></label>
+        <label class="f">Fosfato <i class="u">mmol/L</i><input name="phos" inputmode="decimal"></label>
+      </div>
+      <div class="opts">
+        <label class="chk"><input type="checkbox" name="useK"> Includi K⁺ nel gap anionico</label>
+        <label class="f sm">AG normale del laboratorio<input name="agNormal" inputmode="decimal" placeholder="12 (16 con K⁺)"></label>
+      </div>
+    </details>
+
+    <details class="grp"><summary>Osmolalità, glicemia, urea</summary>
+      <div class="units"><span>Glucosio:</span>
+        <label><input type="radio" name="uG" value="mg" checked> mg/dL</label>
+        <label><input type="radio" name="uG" value="mmol"> mmol/L</label>
+        <span class="sp">Azoto:</span>
+        <label><input type="radio" name="uU" value="urea" checked> Urea</label>
+        <label><input type="radio" name="uU" value="bun"> BUN</label>
+      </div>
+      <div class="grid">
+        <label class="f">Glucosio <i class="u g">mg/dL</i><input name="glu" inputmode="decimal"></label>
+        <label class="f"><span class="ulab">Urea (azotemia)</span> <i class="u">mg/dL</i><input name="urea" inputmode="decimal"></label>
+        <label class="f">Osmolalità misurata <i class="u">mOsm/kg</i><input name="osmMeas" inputmode="decimal"></label>
+        <label class="f">Etanolo <i class="u">mg/dL</i><input name="etoh" inputmode="decimal"></label>
+      </div>
+    </details>
+
+    <details class="grp"><summary>Elettroliti urinari</summary>
+      <div class="grid">
+        <label class="f">Na⁺ urinario <i class="u">mmol/L</i><input name="uNa" inputmode="decimal"></label>
+        <label class="f">K⁺ urinario <i class="u">mmol/L</i><input name="uK" inputmode="decimal"></label>
+        <label class="f">Cl⁻ urinario <i class="u">mmol/L</i><input name="uCl" inputmode="decimal"></label>
+      </div>
+    </details>
+
+    <details class="grp"><summary>Paziente e ventilazione</summary>
+      <div class="grid">
+        <label class="f">Età <i class="u">anni</i><input name="age" inputmode="decimal"></label>
+        <label class="f">Sesso<select name="sex"><option value="">—</option><option value="M">M</option><option value="F">F</option></select></label>
+        <label class="f">Altezza <i class="u">cm</i><input name="height" inputmode="decimal"></label>
+        <label class="f">Peso <i class="u">kg</i><input name="weight" inputmode="decimal"></label>
+        <label class="f">P atmosferica <i class="u">mmHg</i><input name="patm" inputmode="decimal" placeholder="760"></label>
+        <label class="f">PEEP <i class="u">cmH₂O</i><input name="peep" inputmode="decimal"></label>
+        <label class="f">Paw media <i class="u">cmH₂O</i><input name="map" inputmode="decimal"></label>
+        <label class="f">EtCO₂ <i class="u p">mmHg</i><input name="etco2" inputmode="decimal"></label>
+        <label class="f">VE attuale <i class="u">L/min</i><input name="ve" inputmode="decimal"></label>
+        <label class="f">PaCO₂ target <i class="u p">mmHg</i><input name="pco2Target" inputmode="decimal"></label>
+        <label class="f">HCO₃⁻ target <i class="u">mmol/L</i><input name="hco3Target" inputmode="decimal" placeholder="22"></label>
+      </div>
+    </details>
+  </form>
+
+  <div id="results" aria-live="polite"></div>
+</section>
+
+<!-- ================= DISTURBI ================= -->
+<section id="tab-dis" class="tab" aria-label="Disamina dei disturbi">
+  <h2>Disamina dei disturbi acido-base</h2>
+  <p class="mut">Fisiopatologia, criteri EGA, compenso atteso, eziologia e risoluzione.</p>
+  <div id="disList"></div>
+</section>
+
+<!-- ================= FORMULE ================= -->
+<section id="tab-form" class="tab" aria-label="Formule">
+  <h2>Formule e regole di compenso</h2>
+  <div id="formTable"></div>
+  <h3>Tabella sinottica del compenso</h3>
+  <div id="compTable"></div>
+</section>
+
+<!-- ================= METODO ================= -->
+<section id="tab-met" class="tab" aria-label="Metodo">
+  <h2>Metodo di interpretazione</h2>
+  <div id="algo"></div>
+  <h3>Mappa acido-base</h3>
+  <p class="mut">Bande di compenso atteso (PaCO₂ vs HCO₃⁻) con isopleth di pH. Nel calcolatore il punto del paziente viene posizionato sulla mappa.</p>
+  <div id="mapStatic"></div>
+  <h3>Errori preanalitici</h3>
+  <div id="preanal"></div>
+  <h3>Riferimenti</h3>
+  <ol id="refs" class="refs"></ol>
+</section>
+
+<!-- ================= VALIDAZIONE ================= -->
+<section id="tab-val" class="tab" aria-label="Validazione">
+  <h2>Validazione del motore di calcolo</h2>
+  <p class="mut">Casi di riferimento coerenti con l'equazione di Henderson-Hasselbalch, eseguiti in tempo reale sul motore installato. Ogni caso verifica disturbo primario, compenso, cronicità, gap anionico, Δ/Δ e indici di ossigenazione.</p>
+  <div id="valSummary"></div>
+  <div id="valList"></div>
+</section>
+
+<p class="disclaimer">Strumento di supporto decisionale per professionisti sanitari. Non sostituisce il giudizio clinico né i protocolli aziendali. Verificare sempre i valori di riferimento del proprio laboratorio.</p>
+</main>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" data-tab="calc" class="active"><span>⚗</span>Calcolo</button>
+  <button role="tab" data-tab="dis"><span>☰</span>Disturbi</button>
+  <button role="tab" data-tab="form"><span>ƒ</span>Formule</button>
+  <button role="tab" data-tab="met"><span>◎</span>Metodo</button>
+  <button role="tab" data-tab="val"><span>✓</span>Test</button>
+</nav>
+
+<script src="ega-engine.js"></script>
+<script src="ega-content.js"></script>
+<script src="ega-app.js"></script>
+</body>
+</html>
