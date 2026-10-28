@@ -29,10 +29,11 @@ ${T(['Lettera', 'Causa', 'Indizi diagnostici'], [
 ${T(['Causa', 'Trattamento'], [
  ['Acidosi lattica tipo A', 'Ripristino della perfusione: fluidi guidati da indici dinamici, vasopressori/inotropi (MAP ≥ 65), Hb adeguata, controllo della fonte settica; clearance del lattato a 2–6 h come target'],
  ['Acidosi lattica tipo B', 'Sospendere il farmaco (adrenalina → effetto β2 glicolitico, metformina, linezolid, propofol), tiamina 200–500 mg e.v. se deficit, trattare insufficienza epatica'],
- ['DKA', 'Fluidi (cristalloidi bilanciati preferibili), insulina e.v. 0.1 UI/kg/h dopo K⁺ ≥ 3.5, K⁺ precoce, glucosio quando glicemia < 250 mg/dL; target: chiusura del gap e β-OHB < 0.6'],
+ ['DKA (consenso ADA/EASD 2024)', 'Diagnosi D-K-A: glicemia ≥ 200 mg/dL <i>o</i> diabete noto (include la DKA euglicemica) + β-OHB ≥ 3,0 mmol/L (o chetonuria ≥ 2+) + pH < 7,30 e/o HCO₃⁻ < 18. Gravità: lieve pH > 7,25 e HCO₃⁻ ≥ 15 · moderata pH 7,00–7,25, HCO₃⁻ 10–15 · grave pH < 7,00, HCO₃⁻ < 10 o β-OHB > 6. Terapia: cristalloidi (bilanciati preferibili) 500–1000 mL/h nelle prime 2–4 h (boli più piccoli in cardiopatici/nefropatici), insulina e.v. 0,1 UI/kg/h solo con K⁺ ≥ 3,5, K⁺ se < 5,0 (target 4–5), destrosio 5–10% quando glicemia < 250 mg/dL; monitoraggio con β-OHB (o chiusura del gap) e pH venoso ogni 4 h'],
+ ['DKA euglicemica (SGLT2-i)', 'Sospettarla in ogni paziente in gliflozina con HAGMA anche se glicemia < 250 mg/dL (digiuno, chirurgia, infezione, riduzione dell\'insulina): dosare β-OHB. Terapia come DKA, con destrosio fin dall\'inizio insieme all\'insulina. Perioperatorio (SPAQI, BJA 2026): sospendere 3 giorni prima (4 per ertugliflozin) nei diabetici candidati a chirurgia maggiore, bariatrica o <b>cardiochirurgia</b> senza scompenso/IRC; se proseguita (scompenso, IRC) monitoraggio intensivo di gap anionico e chetoni; riprendere con alimentazione regolare. Un AG normale rende improbabile una eDKA clinicamente rilevante'],
  ['Alcoli tossici', 'Fomepizolo (o etanolo), emodialisi, folati (metanolo), tiamina/piridossina (glicole)'],
  ['Uremia', 'Terapia sostitutiva renale se pH < 7.15, iperK⁺, sovraccarico'],
- ['NaHCO₃', 'Acidemia metabolica grave (pH ≤ 7.20) + AKI KDIGO 2–3: BICAR-ICU (2018) beneficio nel sottogruppo AKI; BICARICU-2 (JAMA 2025): nessuna riduzione della mortalità a 90 gg, meno dialisi (35% vs 50%), bilancio idrico più positivo. Opzione ragionevole per ritardare/evitare la KRT, non terapia salvavita. SSC 2021: non per l\'iperlattatemia da ipoperfusione con pH > 7.20. DKA: solo se pH < 7.0 (ADA/EASD 2024)']])}
+ ['NaHCO₃', 'Acidemia metabolica grave (pH ≤ 7.20) + AKI KDIGO 2–3: BICAR-ICU (2018) beneficio nel sottogruppo AKI; BICARICU-2 (JAMA 2025): nessuna riduzione della mortalità a 90 gg, meno KRT (35% vs 50%), bilancio idrico più positivo → opzione per ritardare/evitare la KRT, non terapia salvavita. SSC 2026: suggerito nello shock settico con pH ≤ 7.20 e AKI stadio 2–3 (certezza molto bassa); sconsigliato per migliorare l\'emodinamica/ridurre i vasopressori nell\'acidemia lattica da ipoperfusione. SODa-BIC (NEJM 2026; shock con vasopressori, pH < 7.30, BE ≤ −4): nessuna riduzione di MAKE30 né della mortalità, più ipokaliemia → non di routine nell\'acidosi moderata. Prerequisito: capacità di eliminare la CO₂ prodotta. DKA: solo se pH < 7.0 (ADA/EASD 2024)']])}
 <div class="pearl"><b>Cardiochirurgia:</b> l'iperlattatemia post-CEC è frequentemente di tipo B (adrenalina, iperglicemia, stress) e si risolve in 12–24 h; un lattato in aumento con ScvO₂ bassa, oliguria e ΔPCO₂ v-a > 6 mmHg suggerisce bassa portata (tipo A) → valutazione emodinamica/eco urgente.</div>`
 },
 {
@@ -56,7 +57,7 @@ ${T(['Test', 'Formula', 'Interpretazione'], [
  ['pH urinario', '—', '> 5.5 con acidemia → RTA distale'],
  ['K⁺ sierico', '—', 'Basso: GI, RTA 1–2 · Alto: RTA 4, IRC']])}
 <h4>Risoluzione / gestione</h4>
-<ul><li><b>Iatrogena ipercloremica:</b> sostituire NaCl 0.9% con cristalloidi bilanciati (Ringer lattato/acetato, Plasma-Lyte). Evidenze: SMART (2018) riduzione modesta degli eventi renali maggiori (MAKE30); BaSICS e PLUS (2021–2022) nessuna differenza di mortalità né di KRT; nel trauma cranico preferire NaCl 0,9% (segnale di aumento di mortalità con soluzione bilanciata nel sottogruppo TBI di BaSICS).</li>
+<ul><li><b>Iatrogena ipercloremica:</b> sostituire NaCl 0.9% con cristalloidi bilanciati (Ringer lattato/acetato, Plasma-Lyte). Evidenze: SMART (2018) riduzione modesta degli eventi renali maggiori (MAKE30); BaSICS e PLUS (2021–2022) nessuna differenza di mortalità né di KRT. SSC 2026: cristalloidi bilanciati suggeriti rispetto a NaCl 0,9% nella rianimazione iniziale della sepsi (certezza moderata); nel trauma cranico preferire NaCl 0,9%.</li>
 <li><b>Perdite GI:</b> reintegro volemico e di K⁺; NaHCO₃ o citrato di K per HCO₃⁻ &lt; 15–18 o pH &lt; 7.20, perché qui l'HCO₃⁻ è perso e non rigenerabile da anioni metabolizzabili.</li>
 <li><b>RTA:</b> alcali orali (citrato/bicarbonato), correzione di K⁺; tipo 4 → sospendere farmaci causali, fludrocortisone, diuretici dell'ansa, patiromer.</li>
 <li><b>Acetazolamide:</b> rivalutare l'indicazione; attenzione all'acidosi nei BPCO ipercapnici.</li></ul>
@@ -156,7 +157,8 @@ ${T(['Tipo', 'Meccanismo', 'Cause'], [
  ['B1', 'Malattie di base', 'Insufficienza epatica, neoplasie (effetto Warburg), DKA, sepsi (glicolisi aerobia adrenergica), feocromocitoma'],
  ['B2', 'Farmaci/tossine', 'Adrenalina, salbutamolo, metformina, propofol (PRIS), linezolid, NRTI, cianuro (nitroprussiato), alcoli, paracetamolo'],
  ['B3', 'Errori congeniti', 'Deficit di piruvato deidrogenasi, malattie mitocondriali, deficit di tiamina']])}
-<p><b>Target:</b> riduzione ≥ 10–20% ogni 2 h nelle prime 6–8 h di rianimazione; il tempo di riempimento capillare (ANDROMEDA-SHOCK) è un'alternativa valida per guidare la rianimazione.</p>`
+<p><b>Monitoraggio (SSC 2026):</b> misurare il lattato in ogni sospetta sepsi e ripeterlo per guidare la rianimazione (certezza bassa); dopo il bolo iniziale individualizzare i fluidi in base alla <i>riduzione</i> del lattato, senza proseguire fino alla sua normalizzazione (rischio di sovraccarico). Tempo di riempimento capillare suggerito come integrazione agli altri indici di perfusione (ANDROMEDA-SHOCK). Target pratico: riduzione ≥ 10–20% ogni 2 h nelle prime 6–8 h. MAP iniziale 65 mmHg (60–65 se ≥ 65 anni). NaHCO₃ non indicato per migliorare l'emodinamica.</p>
+<p><b>Quadri ICU rilevanti:</b> la sepsi può dare iperlattatemia "aerobia" (adrenergica, tipo B) con perfusione adeguata; ΔPCO₂ cv-a &gt; 6 mmHg e ScvO₂ &lt; 70% orientano verso ipoperfusione (tipo A).</p>`
 }
 ];
 
@@ -186,8 +188,9 @@ const FORMULAS = [
  ['Gas alveolari', 'PAO₂ = FiO₂·(Patm − 47) − PaCO₂·[FiO₂ + (1 − FiO₂)/R]', 'Semplificata: − PaCO₂/0.8; R = 0.8'],
  ['Gradiente A-a', 'PAO₂ − PaO₂', 'Normale (aria) ≈ età/4 + 4'],
  ['Rapporto a/A', 'PaO₂ / PAO₂', 'Normale > 0.75; poco dipendente dalla FiO₂'],
- ['P/F', 'PaO₂ / FiO₂', '≤ 300 / 200 / 100 (ARDS lieve/moderata/grave)'],
- ['S/F (Global ARDS 2023)', 'SpO₂ / FiO₂ (solo se SpO₂ ≤ 97%)', '≤ 315 / 235 / 148'],
+ ['P/F', 'PaO₂ / FiO₂', '≤ 300 / 200 / 100 (ARDS lieve/moderata/grave; intubato con PEEP ≥ 5)'],
+ ['S/F (Global ARDS 2024)', 'SpO₂ / FiO₂ (solo se SpO₂ ≤ 97%)', '≤ 315 / 235 / 148 (intubato). Non intubato (HFNO ≥ 30 L/min o NIV/CPAP ≥ 5): P/F ≤ 300 o S/F ≤ 315 senza gradi'],
+ ['ΔPCO₂ veno-arterioso', 'PcvCO₂ − PaCO₂ (prelievi simultanei)', 'Normale 2–6 mmHg; > 6 → portata/flusso inadeguati anche con ScvO₂ ≥ 70%'],
  ['Indice di ossigenazione', 'OI = Paw·FiO₂·100 / PaO₂', '> 16 grave, > 25–40 valutare ECMO'],
  ['PaO₂ attesa per età (Sorbini)', '109 − 0.43·età', 'Supino, aria ambiente'],
  ['Contenuto arterioso O₂', 'CaO₂ = 1.34·Hb·SaO₂ + 0.003·PaO₂', 'mL/dL; normale 17–20'],
@@ -212,11 +215,20 @@ const ALGO = `
 </ol>
 <div class="pearl"><b>Regola d'oro:</b> il compenso non porta mai il pH oltre 7.40 e solo raramente lo normalizza (eccezione: alcalosi respiratoria cronica). Un pH normale con PaCO₂ e HCO₃⁻ alterati è un disturbo misto finché non si dimostra il contrario.</div>`;
 
+const VENOUS = T(['Parametro', 'Venoso vs arterioso', 'Uso clinico'], [
+ ['pH', 'Più basso di ≈ 0,03 (buona concordanza)', 'Utilizzabile per screening e monitoraggio (DKA, acidosi metabolica)'],
+ ['HCO₃⁻ / BE', 'Concordanza accettabile (PS, DKA, IRC in dialisi)', 'Utilizzabile; gap anionico e Δ/Δ calcolabili'],
+ ['PCO₂', 'Mediamente +4–5 mmHg ma limiti di concordanza molto ampi', 'NON intercambiabile con la PaCO₂: in insufficienza respiratoria, shock o VAM confermare con EGA arteriosa'],
+ ['PO₂ / SO₂', 'Non correlata all\'ossigenazione arteriosa', 'Non usare per P/F, gradiente A-a, ARDS (usare SpO₂ → S/F)'],
+ ['Lattato', 'Buona concordanza riportata anche nel paziente ipoteso', 'Utilizzabile per screening e trend; prelievo senza laccio prolungato'],
+ ['Venoso centrale + arterioso', 'ΔPCO₂ cv-a 2–6 mmHg; ScvO₂ ≥ 70%', 'Indici di adeguatezza della perfusione (vedi calcolatore)']]) +
+ `<p class="mut">Fonti: Byrne AL et al., Respirology 2014 (metanalisi, 18 studi, 1768 coppie): sangue venoso accettabile se interessa solo il pH, non adatto per PCO₂ e ancor meno per PO₂; Folsom AM, Clin Lab Sci 2026 (revisione): VBG utile per screening acido-base, non per l'ossigenazione; evitare provette sottovuoto e siringhe con aria. Nel calcolatore selezionare "Venoso": l'app esclude gli indici di ossigenazione da PO₂ e segnala i limiti.</p>`;
+
 const PREANALYTIC = T(['Errore', 'Effetto su EGA'], [
  ['Bolla d\'aria', '↑ PaO₂ (verso 150), ↓ PaCO₂, ↑ pH'],
  ['Ritardo all\'analisi (> 30 min a T ambiente)', '↓ PaO₂, ↑ PaCO₂, ↓ pH, ↑ lattati (metabolismo cellulare; leucocitosi/trombocitosi estreme)'],
  ['Eccesso di eparina liquida', 'Diluizione: ↓ PaCO₂ e HCO₃⁻; possibile ↓ Ca²⁺ ionizzato'],
- ['Campione venoso/misto', 'PaO₂ bassa, PaCO₂ + 4–6 mmHg, pH − 0.03–0.05'],
+ ['Campione venoso/misto non riconosciuto', 'PaO₂ bassa, PCO₂ più alta (+4–5 mmHg, molto variabile), pH ≈ −0.03: selezionare "Venoso" nel calcolatore'],
  ['Emolisi', '↑ K⁺ spurio'],
  ['Prelievo vicino all\'infusione', 'Diluizione/contaminazione (Na, Cl, glucosio)'],
  ['Temperatura', 'Riportare la T del paziente (α-stat vs pH-stat, rilevante in ipotermia/CEC)']]);
@@ -232,13 +244,19 @@ const REFS = [
  'Kraut JA, Madias NE. Metabolic acidosis: pathophysiology, diagnosis and management. Nat Rev Nephrol 2010;6:274-85.',
  'Mehta AN, Emmett JB, Emmett M. GOLD MARK: an anion gap mnemonic for the 21st century. Lancet 2008;372:892.',
  'Jaber S et al. BICAR-ICU: Sodium bicarbonate therapy for severe metabolic acidaemia. Lancet 2018;392:31-40.',
- 'Jung B et al. (BICARICU-2). Sodium bicarbonate for severe metabolic acidemia and acute kidney injury. JAMA 2025;334(22):2000-10.',
- 'Evans L et al. Surviving Sepsis Campaign: international guidelines 2021. Intensive Care Med 2021;47:1181-247.',
+ 'Jung B et al. (BICARICU-2). Sodium bicarbonate for severe metabolic acidemia and acute kidney injury. JAMA 2025;334(22):2000-10 (doi:10.1001/jama.2025.20231).',
+ 'Prescott HC, Antonelli M, Alhazzani W et al. Surviving Sepsis Campaign: international guidelines for management of sepsis and septic shock 2026. Intensive Care Med 2026;52(5):863-936 (doi:10.1007/s00134-026-08361-1); Crit Care Med 2026 (doi:10.1097/CCM.0000000000007075).',
+ 'SODa-BIC Investigators, ANZICS CTG. Sodium bicarbonate for critically ill adults with metabolic acidosis and shock. N Engl J Med 2026 (online 12/06/2026; doi:10.1056/NEJMoa2600526).',
+ 'von Groote T, Langer T, Brunoni B. Sodium bicarbonate application for the treatment of acute metabolic acidosis: what we know and what we still don\'t know. Intensive Care Med 2026 (doi:10.1007/s00134-026-08314-8).',
+ 'Oprea AD et al. Perioperative management of patients taking SGLT2 inhibitors: SPAQI multidisciplinary consensus statement. Br J Anaesth 2026;136(6):1776-99 (doi:10.1016/j.bja.2026.02.031).',
+ 'Byrne AL et al. Peripheral venous and arterial blood gas analysis in adults: are they comparable? A systematic review and meta-analysis. Respirology 2014;19:168-75 (doi:10.1111/resp.12225).',
+ 'Folsom AM. An overview of venous blood gas analysis. Clin Lab Sci 2026 (online 08/2026; doi:10.29074/ascls.2026003341).',
+ 'Mallat J et al. Use of venous-to-arterial carbon dioxide tension difference to guide resuscitation therapy in septic shock. World J Crit Care Med 2016;5:47-56 (doi:10.5492/wjccm.v5.i1.47).',
  'Umpierrez GE et al. Hyperglycemic crises in adults with diabetes: a consensus report (ADA/EASD/JBDS/AACE/DTS). Diabetes Care 2024;47:1257-75.',
  'Zampieri FG et al. (BaSICS). Effect of intravenous fluid treatment with a balanced solution vs 0.9% saline. JAMA 2021;326:818-29.',
  'Finfer S et al. (PLUS). Balanced multielectrolyte solution versus saline in critically ill adults. N Engl J Med 2022;386:815-26.',
  'Kraut JA, Madias NE. Serum anion gap: its uses and limitations in clinical medicine. Clin J Am Soc Nephrol 2007;2:162-74.',
- 'Matthay MA et al. A New Global Definition of ARDS. Am J Respir Crit Care Med 2024;209:37-47.',
+ 'Matthay MA et al. A New Global Definition of Acute Respiratory Distress Syndrome. Am J Respir Crit Care Med 2024;209(1):37-47 (doi:10.1164/rccm.202303-0558WS).',
  'ARDS Definition Task Force. Berlin Definition. JAMA 2012;307:2526-33.',
  'Sinha P et al. Physiologic analysis and clinical performance of the ventilatory ratio in ARDS. AJRCCM 2019;199:333-41.',
  'Semler MW et al. SMART: Balanced crystalloids vs saline in critically ill adults. N Engl J Med 2018;378:829-39.',
@@ -247,5 +265,5 @@ const REFS = [
  'Deranged Physiology (CICM) e LITFL Critical Care Compendium — regole di Boston/Copenhagen.'
 ];
 
-root.EGA_CONTENT = { DISORDERS, FORMULAS, ALGO, PREANALYTIC, REFS, T };
+root.EGA_CONTENT = { DISORDERS, FORMULAS, ALGO, PREANALYTIC, VENOUS, REFS, T };
 })(typeof self !== 'undefined' ? self : this);

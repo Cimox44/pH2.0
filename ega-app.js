@@ -28,6 +28,7 @@ function showTab(t) {
 $$('.tabs button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
 function toast(msg) {
+  $$('.toast').forEach(x => x.remove());
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
 }
@@ -44,14 +45,15 @@ function updateUnitLabels() {
   $$('.u.g').forEach(e => e.textContent = u.g === 'mmol' ? 'mmol/L' : 'mg/dL');
   $('.ulab').textContent = u.u === 'bun' ? 'BUN' : 'Urea (azotemia)';
 }
-const NUMS = ['pH', 'pco2', 'hco3', 'be', 'po2', 'fio2', 'spo2', 'sao2', 'lac', 'hb', 'na', 'k', 'cl', 'alb', 'ica', 'mg', 'phos', 'agNormal', 'glu', 'urea', 'osmMeas', 'etoh', 'uNa', 'uK', 'uCl', 'age', 'height', 'weight', 'patm', 'peep', 'map', 'etco2', 've', 'pco2Target', 'hco3Target'];
+const NUMS = ['pH', 'pco2', 'hco3', 'be', 'po2', 'fio2', 'spo2', 'sao2', 'lac', 'hb', 'na', 'k', 'cl', 'alb', 'ica', 'mg', 'phos', 'agNormal', 'glu', 'urea', 'osmMeas', 'etoh', 'uNa', 'uK', 'uCl', 'age', 'height', 'weight', 'patm', 'peep', 'map', 'etco2', 've', 'pco2Target', 'hco3Target', 'pcvco2', 'scvo2'];
 const num = (v) => { if (v === '' || v == null) return null; const x = parseFloat(String(v).replace(',', '.')); return isFinite(x) ? x : null; };
 
 function readInputs() {
   const u = units(), I = {};
   NUMS.forEach(n => { I[n] = num(form[n].value); });
   I.chronicity = form.chronicity.value; I.sex = form.sex.value; I.useK = form.useK.checked;
-  if (u.p === 'kPa') ['pco2', 'po2', 'etco2', 'pco2Target'].forEach(k => { if (I[k] != null) I[k] = I[k] * E.kPa2mmHg; });
+  I.sample = form.sample.value; I.oxSupport = form.oxSupport.value;
+  if (u.p === 'kPa') ['pco2', 'po2', 'etco2', 'pco2Target', 'pcvco2'].forEach(k => { if (I[k] != null) I[k] = I[k] * E.kPa2mmHg; });
   if (u.a === 'gl' && I.alb != null) I.alb = I.alb / 10;
   if (u.g === 'mmol' && I.glu != null) I.glu = I.glu * 18.016;
   if (u.u === 'bun') { I.bun = I.urea; I.urea = null; }
@@ -60,7 +62,7 @@ function readInputs() {
 function saveForm() {
   const s = {};
   NUMS.forEach(n => s[n] = form[n].value);
-  s.chronicity = form.chronicity.value; s.sex = form.sex.value; s.useK = form.useK.checked;
+  s.chronicity = form.chronicity.value; s.sex = form.sex.value; s.useK = form.useK.checked; s.sample = form.sample.value; s.oxSupport = form.oxSupport.value;
   s.uP = form.uP.value; s.uA = form.uA.value; s.uG = form.uG.value; s.uU = form.uU.value;
   store.set('form', s);
 }
@@ -69,6 +71,8 @@ function loadForm(s) {
   NUMS.forEach(n => { if (s[n] != null) form[n].value = s[n]; });
   if (s.chronicity) form.chronicity.value = s.chronicity;
   if (s.sex != null) form.sex.value = s.sex;
+  if (s.sample) form.sample.value = s.sample;
+  if (s.oxSupport != null) form.oxSupport.value = s.oxSupport;
   form.useK.checked = !!s.useK;
   ['uP', 'uA', 'uG', 'uU'].forEach(k => { if (s[k]) form[k].value = s[k]; });
   updateUnitLabels();
@@ -167,7 +171,7 @@ function compute() {
   h += kpi('SBE', (v.sbe > 0 ? '+' : '') + fmt(v.sbe, 1), v.sbeSource, v.sbe < -2 ? 'hi' : v.sbe > 2 ? 'lo' : '');
   if (R.ag) h += kpi(R.ag.agc != null ? 'AG corretto' : 'Gap anionico', fmt(R.ag.use, 1), (R.ag.agc != null ? 'AG grezzo ' + fmt(R.ag.ag, 1) + ' · ' : '') + R.ag.status, R.ag.status === 'elevato' ? 'hi' : '');
   if (R.delta && R.delta.ratio != null) h += kpi('Δ/Δ', fmt(R.delta.ratio, 2), 'ΔAG ' + fmt(R.delta.dAG, 1) + ' / ΔHCO₃⁻ ' + fmt(R.delta.dHCO3, 1));
-  if (R.oxy && R.oxy.pf != null) h += kpi('P/F', fmt(R.oxy.pf, 0), R.oxy.pfClass.split(' (')[0], R.oxy.pf <= 300 ? 'hi' : '');
+  if (R.oxy && R.oxy.pf != null) h += kpi('P/F', fmt(R.oxy.pf, 0), (/NON intubato/.test(R.oxy.pfClass) ? 'criterio ARDS non intubato' : R.oxy.pfClass.split(/ \(| —/)[0]), R.oxy.pf <= 300 ? 'hi' : '');
   if (R.oxy && R.oxy.aa != null) h += kpi('Gradiente A-a', fmt(R.oxy.aa, 1), 'PAO₂ ' + fmt(R.oxy.PAO2, 1) + ' mmHg');
   if (R.lac) h += kpi('Lattati', fmt(R.lac.value, 1), 'mmol/L', R.lac.value > 2 ? 'hi' : '');
   h += `</div>`;
@@ -256,11 +260,19 @@ function compute() {
       rows.push(['P/F', `<b>${fmt(o.pf, 0)}</b> — ${esc(o.pfClass)}${o.peep != null ? ` · PEEP ${o.peep}` : ''}`]);
       if (o.pao2Age != null) rows.push(['PaO₂ attesa per età (aria)', `${fmt(o.pao2Age, 0)} mmHg`]);
     }
-    if (o.sf != null) rows.push(['S/F (Global ARDS 2023)', `<b>${fmt(o.sf, 0)}</b> — ${esc(o.sfClass)}`]);
+    if (o.sf != null) rows.push(['S/F (Global ARDS 2024)', `<b>${fmt(o.sf, 0)}</b> — ${esc(o.sfClass)}`]);
     if (o.sfNote) rows.push(['S/F', esc(o.sfNote)]);
     if (o.oi != null) rows.push(['Indice di ossigenazione', `<b>${fmt(o.oi, 1)}</b> <span class="mut">(&gt; 16 grave; &gt; 25–40 valutare ECMO)</span>`]);
     if (o.cao2 != null) rows.push(['CaO₂', `${fmt(o.cao2, 1)} mL/dL <span class="mut">(17–20)</span>`]);
-    h += `<div class="card"><h3><span class="n">7</span>Ossigenazione</h3>${table(['Indice', 'Risultato'], rows)}${o.aaInterp ? `<p class="mut">${esc(o.aaInterp)}</p>` : ''}<p class="mut">Criteri ARDS (Berlin 2012 / Global Definition 2023): insorgenza entro 1 settimana, infiltrati bilaterali non spiegati da insufficienza cardiaca/sovraccarico; per l'intubato gradi con PEEP ≥ 5 cmH₂O.</p></div>`;
+    h += `<div class="card"><h3><span class="n">7</span>Ossigenazione</h3>${table(['Indice', 'Risultato'], rows)}${o.aaInterp ? `<p class="mut">${esc(o.aaInterp)}</p>` : ''}<p class="mut">Global Definition ARDS (Matthay, AJRCCM 2024): fattore di rischio acuto, insorgenza/peggioramento entro 1 settimana, opacità bilaterali (Rx, TC o ecografia) non spiegate da versamenti/atelettasie/noduli, edema non primariamente cardiogeno. Intubato (PEEP ≥ 5): lieve P/F 200–300 o S/F 235–315 · moderata P/F 100–200 o S/F 148–235 · grave P/F ≤ 100 o S/F ≤ 148. Non intubato (HFNO ≥ 30 L/min o NIV/CPAP ≥ 5 cmH₂O): P/F ≤ 300 o S/F ≤ 315, senza gradi. S/F valido solo con SpO₂ ≤ 97%.</p></div>`;
+  }
+
+  // Perfusione
+  if (R.perf) {
+    const pf = R.perf, rows = [];
+    if (pf.gap != null) rows.push(['ΔPCO₂ veno-arterioso (PcvCO₂ − PaCO₂)', `<b>${fmt(pf.gap, 1)}</b> mmHg — ${esc(pf.gapInterp)}`]);
+    if (pf.scvo2 != null) rows.push(['ScvO₂', `<b>${fmt(pf.scvo2, 0)}</b>% — ${esc(pf.scvInterp)}`]);
+    h += `<div class="card"><h3><span class="n">8</span>Perfusione (EGA venosa centrale)</h3>${table(['Indice', 'Risultato'], rows)}<p class="mut">Prelievi arterioso e venoso centrale simultanei. Integrare con lattati seriati e tempo di riempimento capillare (SSC 2026).</p></div>`;
   }
 
   // Ventilazione
@@ -270,13 +282,13 @@ function compute() {
     if (t.pbw != null) rows.push(['Peso predetto (PBW)', `${fmt(t.pbw, 1)} kg → VT 6 mL/kg = ${fmt(t.vt6, 0)} mL · 8 mL/kg = ${fmt(t.vt8, 0)} mL`]);
     if (t.vr != null) rows.push(['Ventilatory ratio', `<b>${fmt(t.vr, 2)}</b> — ${esc(t.vrInterp)}`]);
     if (t.veTarget != null) rows.push(['VE per PaCO₂ target', `<b>${fmt(t.veTarget, 1)}</b> L/min<br><span class="mut">${esc(t.veNote)}</span>`]);
-    h += `<div class="card"><h3><span class="n">8</span>Ventilazione</h3>${table(['Indice', 'Risultato'], rows)}</div>`;
+    h += `<div class="card"><h3><span class="n">9</span>Ventilazione</h3>${table(['Indice', 'Risultato'], rows)}</div>`;
   }
 
   // Terapia
   if (R.therapy) {
     const t = R.therapy;
-    h += `<div class="card"><h3><span class="n">9</span>Deficit di bicarbonato (orientativo)</h3>${table(['Calcolo', 'Valore'], [
+    h += `<div class="card"><h3><span class="n">10</span>Deficit di bicarbonato (orientativo)</h3>${table(['Calcolo', 'Valore'], [
       ['0,5 × peso × (' + t.target + ' − HCO₃⁻)', `<b>${fmt(t.deficit, 0)}</b> mEq`],
       ['0,3 × peso × |BE|', `${fmt(t.deficitBE, 0)} mEq`],
       ['Metà del deficit (prima dose)', `${fmt(t.half, 0)} mEq = <b>${fmt(t.half, 0)} mL NaHCO₃ 8,4%</b> · ${fmt(t.half * 2, 0)} mL al 4,2% · ${fmt(t.half / 0.1667, 0)} mL all'1,4%`]
@@ -315,6 +327,8 @@ function copyReport() {
   L.push('Diagnosi: ' + R.diagnosis);
   R.compChecks.forEach(c => L.push('Compenso: ' + c.text));
   if (R.delta && R.delta.interp) L.push('Δ/Δ: ' + R.delta.interp);
+  if (R.perf && R.perf.gap != null) L.push(`ΔPCO2 cv-a ${fmt(R.perf.gap, 1)} mmHg` + (R.perf.scvo2 != null ? ` | ScvO2 ${fmt(R.perf.scvo2, 0)}%` : ''));
+  if (I.sample === 'ven') L.push('Campione: VENOSO');
   if (R.oxy && R.oxy.aa != null) L.push(`Ossigenazione: A-a ${fmt(R.oxy.aa, 1)} mmHg, a/A ${fmt(R.oxy.aA, 2)}, ${R.oxy.pfClass}`);
   R.warnings.forEach(w => L.push('Nota: ' + w));
   const txt = L.join('\n');
@@ -345,6 +359,9 @@ $('#algo').innerHTML = C.ALGO;
 $('#mapStatic').innerHTML = `<div class="card map">${acidBaseMap(null)}<p class="mut">① Acidosi metabolica · ② Alcalosi metabolica · ③ Acidosi resp. acuta · ④ Acidosi resp. cronica · ⑤ Alcalosi resp. acuta · ⑥ Alcalosi resp. cronica · riquadro verde: normalità.</p></div>`;
 $('#preanal').innerHTML = C.PREANALYTIC;
 $('#refs').innerHTML = C.REFS.map(r => `<li>${esc(r)}</li>`).join('');
+$$('.appver').forEach(e => e.textContent = 'EGA Acido-Base v' + E.VERSION + ' · contenuti aggiornati a ' + E.CONTENT_DATE);
+$$('.appv').forEach(e => e.textContent = 'v' + E.VERSION);
+if ($('#venous')) $('#venous').innerHTML = C.VENOUS;
 
 // ---------- Validazione ----------
 function renderValidation() {
@@ -354,6 +371,14 @@ function renderValidation() {
   $('#valList').innerHTML = res.map(r => `<div class="val"><div class="h"><span>${r.id} · ${esc(r.name)}</span><span class="badge ${r.pass ? 'p' : 'x'}">${r.pass ? 'PASS' : 'FAIL'}</span></div><div class="mut">${esc(r.diagnosis)}</div><ul>${r.checks.map(c => `<li class="${c.pass ? 'v-ok' : 'v-bad'}">${c.pass ? '✓' : '✗'} ${esc(c.label)}${c.pass ? '' : ' (ottenuto: ' + esc(c.got) + ')'}</li>`).join('')}</ul></div>`).join('');
 }
 renderValidation();
+// Coerenza versione app ↔ cache offline del service worker
+if (window.caches) caches.keys().then(ks => {
+  const ega = ks.filter(k => /^ega-v/.test(k)); if (!ega.length) return;
+  const ok = ega.includes('ega-v' + E.VERSION);
+  const el = document.createElement('p'); el.className = 'mut';
+  el.innerHTML = `Cache offline: ${ega.map(esc).join(', ')} — <b class="${ok ? 'v-ok' : 'v-bad'}">${ok ? 'coerente con la versione v' + E.VERSION : 'non coerente con v' + E.VERSION + ': chiudere e riaprire l\'app'}</b>`;
+  $('#valSummary').appendChild(el);
+}).catch(() => {});
 
 // ---------- Avvio ----------
 loadForm(store.get('form', null));

@@ -1,6 +1,6 @@
 /*!
  * EGA Analyzer — motore di calcolo acido-base / ventilatorio / ossigenazione
- * Versione 1.1.0 (2026-10, audit) — Cimox44
+ * Versione 1.2.0 (2026-10, revisione annuale) — Cimox44
  * Modulo UMD: usabile nel browser (window.EGA) e in Node (require).
  * Unità interne: mmHg, mmol/L (= mEq/L per ioni monovalenti), albumina g/dL,
  * glucosio mg/dL, BUN mg/dL, Hb g/dL, FiO2 frazione (0.21–1.0).
@@ -11,7 +11,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '1.1.0';
+  const VERSION = '1.2.0';
+  const CONTENT_DATE = 'ottobre 2026';
 
   // ---- Valori di riferimento (adulto, sangue arterioso, 37 °C) ----
   const REF = {
@@ -90,8 +91,9 @@
   function analyze(raw, opts) {
     opts = opts || {};
     const I = {};
-    for (const k in raw) I[k] = (typeof raw[k] === 'string' && !['chronicity', 'sex'].includes(k)) ? num(raw[k]) : raw[k];
+    for (const k in raw) I[k] = (typeof raw[k] === 'string' && !['chronicity', 'sex', 'sample', 'oxSupport'].includes(k)) ? num(raw[k]) : raw[k];
     if (typeof I.useK === 'string') I.useK = I.useK === 'true';
+    const venous = I.sample === 'ven';
     const out = {
       version: VERSION, ok: false, errors: [], warnings: [], notes: [],
       v: {}, disorders: [], compChecks: [], steps: [], etiologyKeys: [], actions: []
@@ -105,9 +107,36 @@
     if (!has(pH)) out.errors.push('Inserire il pH.');
     if (!has(pco2)) out.errors.push('Inserire la PaCO₂.');
     if (has(pH) && (pH < 6.5 || pH > 8.0)) out.errors.push('pH fuori dal range fisiologicamente compatibile (6.50–8.00): verificare il dato.');
-    if (has(pco2) && (pco2 < 5 || pco2 > 200)) out.errors.push('PaCO₂ fuori range (5–200 mmHg): verificare unità di misura (kPa/mmHg).');
+    if (has(pco2) && pco2 < 10 && pco2 > 0) out.errors.push(`PaCO₂ ${pco2} mmHg non plausibile: probabilmente il valore è in kPa → selezionare l'unità "kPa" (oppure moltiplicare × 7,5).`);
+    else if (has(pco2) && (pco2 <= 0 || pco2 > 200)) out.errors.push('PaCO₂ fuori range (10–200 mmHg): verificare il dato e l\'unità di misura (kPa/mmHg).');
     if (has(hco3) && (hco3 < 2 || hco3 > 70)) out.errors.push('HCO₃⁻ fuori range (2–70 mmol/L).');
     if (out.errors.length) return out;
+    if (pco2 < 15) W(`PaCO₂ ${pco2} mmHg: ipocapnia estrema, vicina al limite fisiologico del compenso. Verificare che il valore non sia in kPa.`);
+
+    // Campi facoltativi: valori negativi o non plausibili vengono esclusi dal calcolo (con avviso)
+    const BOUNDS = {
+      be: [-40, 40, 'BE/SBE', 'mmol/L'], po2: [1, 800, 'PaO₂', 'mmHg'], spo2: [50, 100, 'SpO₂', '%'], sao2: [20, 100, 'SaO₂', '%'],
+      lac: [0, 35, 'Lattati', 'mmol/L'], hb: [2, 25, 'Hb', 'g/dL'], na: [90, 200, 'Na⁺', 'mmol/L'], k: [1, 10, 'K⁺', 'mmol/L'],
+      cl: [50, 160, 'Cl⁻', 'mmol/L'], alb: [0.5, 7, 'Albumina', 'g/dL'], ica: [0.2, 3, 'Ca²⁺ ionizzato', 'mmol/L'], mg: [0.1, 5, 'Mg²⁺', 'mmol/L'],
+      phos: [0.1, 10, 'Fosfato', 'mmol/L'], agNormal: [0, 30, 'AG normale', 'mmol/L'], glu: [5, 3000, 'Glucosio', 'mg/dL'],
+      urea: [1, 1000, 'Urea', 'mg/dL'], bun: [1, 500, 'BUN', 'mg/dL'], osmMeas: [150, 500, 'Osmolalità misurata', 'mOsm/kg'],
+      etoh: [0, 1000, 'Etanolo', 'mg/dL'], uNa: [0, 400, 'Na⁺ urinario', 'mmol/L'], uK: [0, 300, 'K⁺ urinario', 'mmol/L'], uCl: [0, 400, 'Cl⁻ urinario', 'mmol/L'],
+      age: [14, 120, 'Età', 'anni'], height: [100, 250, 'Altezza', 'cm'], weight: [20, 350, 'Peso', 'kg'], patm: [350, 800, 'P atmosferica', 'mmHg'],
+      peep: [0, 30, 'PEEP', 'cmH₂O'], map: [1, 50, 'Paw media', 'cmH₂O'], etco2: [1, 150, 'EtCO₂', 'mmHg'], ve: [0.5, 40, 'VE', 'L/min'],
+      pco2Target: [20, 100, 'PaCO₂ target', 'mmHg'], hco3Target: [10, 30, 'HCO₃⁻ target', 'mmol/L'], fio2: [0.21, 100, 'FiO₂', ''],
+      pcvco2: [10, 200, 'PcvCO₂', 'mmHg'], scvo2: [10, 100, 'ScvO₂', '%']
+    };
+    for (const k in BOUNDS) {
+      if (!has(I[k])) continue;
+      const [lo, hi, lab, u] = BOUNDS[k];
+      if (I[k] < lo || I[k] > hi) {
+        if (k === 'alb' && I[k] >= 10 && I[k] <= 70) W(`Albumina ${I[k]} g/dL non plausibile: il valore sembra in g/L → selezionare l'unità "g/L". Correzione per albumina e Stewart non calcolati.`);
+        else if (k === 'fio2') continue; // gestita nella sezione ossigenazione
+        else W(`${lab} ${I[k]}${u ? ' ' + u : ''} fuori range plausibile (${lo}–${hi}): valore escluso dai calcoli.`);
+        I[k] = null;
+      }
+    }
+    if (venous) W('Campione VENOSO: pH e HCO₃⁻ sono utilizzabili per lo screening acido-base (pH venoso ≈ 0,03 più basso dell\'arterioso); la PvCO₂ non è intercambiabile con la PaCO₂ (concordanza ampia, mediamente +4–5 mmHg) e la PvO₂ non valuta l\'ossigenazione. Le formule di compenso sono validate su sangue arterioso: confermare con EGA arteriosa se la valutazione respiratoria è decisiva.');
 
     // --- Step 0: coerenza interna (Henderson) ---
     const H = F.hFromPH(pH);
@@ -387,6 +416,7 @@
         st.sida = r(sida, 1); st.side = r(side, 1); st.sig = r(sida - side, 1);
         st.phosAssumed = !has(phos);
         st.sigInterp = (sida - side) > 2 ? 'SIG > 2 mEq/L: anioni non misurati (chetoni, solfati, salicilati, metaboliti di alcoli tossici, anioni dell\'IRC).' : 'SIG nella norma (0 ± 2 mEq/L).';
+        if (!has(phos)) st.sigInterp += ` Fosfato non inserito: SIDe sottostimato e SIG sovrastimato di circa ${r(F.phosCharge(1.0, pH), 1)} mEq/L (per fosfato 1,0 mmol/L).`;
       }
       st.interp = [];
       if (st.beNaCl < -2) st.interp.push(`Effetto Na–Cl ${st.beNaCl} mmol/L: acidosi ipercloremica / da diluizione (SID ridotto) — tipica dopo NaCl 0.9% o priming CEC.`);
@@ -401,7 +431,12 @@
     if (has(fio2) && fio2 > 1) fio2 = fio2 / 100;
     if (has(fio2) && (fio2 < 0.21 || fio2 > 1)) { W('FiO₂ fuori range (0.21–1.0): ossigenazione non calcolata.'); fio2 = null; }
     const patm = has(I.patm) ? I.patm : 760;
-    if (has(I.po2) && has(fio2)) {
+    const sup = I.oxSupport || '';
+    const gradeNote = sup === 'imv' ? (has(I.peep) && I.peep < 5 ? ' — attenzione: la gradazione Global ARDS richiede PEEP ≥ 5 cmH₂O' : '')
+      : sup === 'nimv' ? '' : ' — gradi validi per paziente intubato con PEEP ≥ 5 cmH₂O';
+    const nonIntub = (val, thr, lab) => val <= thr ? `Criterio di ossigenazione per ARDS NON intubato soddisfatto (${lab} ≤ ${thr}) se HFNO ≥ 30 L/min o NIV/CPAP con PEEP ≥ 5 cmH₂O; gradi di gravità non definiti dalla Global Definition` : `Nessun criterio ARDS (${lab} > ${thr})`;
+    if (has(I.po2) && has(fio2) && venous) out.notes.push('Campione venoso: P/F, PAO₂, gradiente A-a, a/A, OI e CaO₂ non calcolati (la PvO₂ non riflette l\'ossigenazione arteriosa). S/F calcolabile da SpO₂.');
+    if (has(I.po2) && has(fio2) && !venous) {
       const ox = {};
       ox.fio2 = fio2;
       ox.pf = r(I.po2 / fio2, 0);
@@ -415,7 +450,7 @@
         ox.pao2Age = r(F.pao2Age(I.age), 0);
       }
       const pf = I.po2 / fio2;
-      ox.pfClass = pf > 300 ? 'Nessun criterio ARDS (P/F > 300)' : pf > 200 ? 'Lieve (200 < P/F ≤ 300)' : pf > 100 ? 'Moderata (100 < P/F ≤ 200)' : 'Grave (P/F ≤ 100)';
+      ox.pfClass = sup === 'nimv' ? nonIntub(pf, 300, 'P/F') : (pf > 300 ? 'Nessun criterio ARDS (P/F > 300)' : (pf > 200 ? 'Lieve (200 < P/F ≤ 300)' : pf > 100 ? 'Moderata (100 < P/F ≤ 200)' : 'Grave (P/F ≤ 100)') + gradeNote);
       ox.aaInterp = (fio2 <= 0.22 && has(ox.aaNormal))
         ? (ox.aa > ox.aaNormal ? `Gradiente A-a aumentato (normale per età ≤ ${ox.aaNormal} mmHg): ipossiemia da V/Q mismatch, shunt o difetto di diffusione.` : 'Gradiente A-a normale: eventuale ipossiemia da ipoventilazione (↑PaCO₂) o bassa PiO₂.')
         : 'Con FiO₂ > 0.21 il gradiente A-a aumenta fisiologicamente (fino a ~60–70 mmHg con FiO₂ 1.0): interpretare il trend; preferire P/F e a/A (normale > 0.75).';
@@ -430,8 +465,22 @@
       if (I.spo2 <= 97) {
         const sf = I.spo2 / fio2;
         out.oxy.sf = r(sf, 0);
-        out.oxy.sfClass = sf > 315 ? 'Nessun criterio ARDS (S/F > 315)' : sf > 235 ? 'Lieve (235 < S/F ≤ 315)' : sf > 148 ? 'Moderata (148 < S/F ≤ 235)' : 'Grave (S/F ≤ 148)';
-      } else out.oxy.sfNote = 'S/F non valido con SpO₂ > 97% (curva di dissociazione piatta) — Global Definition ARDS 2023.';
+        out.oxy.sfClass = sup === 'nimv' ? nonIntub(sf, 315, 'S/F') : (sf > 315 ? 'Nessun criterio ARDS (S/F > 315)' : (sf > 235 ? 'Lieve (235 < S/F ≤ 315)' : sf > 148 ? 'Moderata (148 < S/F ≤ 235)' : 'Grave (S/F ≤ 148)') + gradeNote);
+      } else out.oxy.sfNote = 'S/F non valido con SpO₂ > 97% (curva di dissociazione piatta) — Global Definition ARDS (Matthay 2024).';
+    }
+
+    // --- Perfusione: gap veno-arterioso di CO₂ (campione arterioso + venoso centrale) ---
+    if (!venous && (has(I.pcvco2) || has(I.scvo2))) {
+      const pf2 = {};
+      if (has(I.pcvco2)) {
+        pf2.gap = r(I.pcvco2 - pco2, 1);
+        pf2.gapInterp = pf2.gap > 6 ? 'ΔPCO₂ (cv-a) > 6 mmHg: flusso ematico/portata probabilmente inadeguati rispetto alla produzione di CO₂, anche con ScvO₂ normale → rivalutare emodinamica (eco, portata).' : pf2.gap < 0 ? 'ΔPCO₂ negativo: verificare tempi e siti di prelievo (campioni simultanei).' : 'ΔPCO₂ (cv-a) nella norma (2–6 mmHg).';
+      }
+      if (has(I.scvo2)) {
+        pf2.scvo2 = I.scvo2;
+        pf2.scvInterp = I.scvo2 < 70 ? 'ScvO₂ < 70%: apporto di O₂ potenzialmente inadeguato (bassa portata, anemia, ipossiemia) o ↑ consumo.' : 'ScvO₂ ≥ 70%: non esclude ipoperfusione (shunt microcircolatorio, ↓ estrazione) — integrare con ΔPCO₂, lattati e CRT.';
+      }
+      out.perf = pf2;
     }
 
     // --- Ventilazione ---
@@ -464,7 +513,7 @@
       out.therapy = {
         target, deficit: r(def, 0), deficitBE: r(defBE, 0),
         ml84: r(def, 0), ml14: r(def / 0.1667, 0), half: r(def / 2, 0),
-        note: 'NaHCO₃ 8.4% = 1 mEq/mL; 4.2% = 0.5 mEq/mL; 1.4% = 0.167 mEq/mL. Somministrare metà del deficit e rivalutare con EGA. Evidenze: acidemia metabolica grave (pH ≤ 7.20) con AKI KDIGO 2–3 → BICAR-ICU (2018) beneficio nel sottogruppo AKI, ma BICARICU-2 (JAMA 2025) nessuna riduzione della mortalità a 90 giorni, con meno ricorso alla dialisi (35% vs 50%) e bilancio idrico più positivo; SSC 2021: suggerito se pH ≤ 7.20 con AKI, non per l\'iperlattatemia da ipoperfusione con pH > 7.20; DKA: solo se pH < 7.0 (consenso ADA/EASD 2024). Indicazioni consolidate: NAGMA con perdita di HCO₃⁻, iperkaliemia, intossicazioni (TCA, salicilati). Richiede capacità di eliminare la CO₂ prodotta (↑VE): rischio di acidosi intracellulare paradossa, ipernatriemia, sovraccarico, ↓Ca²⁺ ionizzato, ipokaliemia.'
+        note: 'NaHCO₃ 8.4% = 1 mEq/mL; 4.2% = 0.5 mEq/mL; 1.4% = 0.167 mEq/mL. Somministrare metà del deficit e rivalutare con EGA. Evidenze: acidemia metabolica grave (pH ≤ 7.20) con AKI KDIGO 2–3 → BICARICU-2 (JAMA 2025): nessuna riduzione della mortalità a 90 giorni, meno KRT (35% vs 50%), bilancio idrico più positivo; SSC 2026: suggerito nello shock settico con pH ≤ 7.20 e AKI stadio 2–3 (certezza molto bassa), sconsigliato per migliorare l\'emodinamica nell\'acidemia lattica da ipoperfusione; SODa-BIC (NEJM 2026, shock con vasopressori, pH < 7.30): nessuna riduzione di MAKE30 né di mortalità → non usare di routine nell\'acidosi metabolica moderata dello shock. DKA: solo se pH < 7.0 (consenso ADA/EASD 2024). Indicazioni consolidate: NAGMA con perdita di HCO₃⁻, iperkaliemia, intossicazioni (TCA, salicilati). Richiede capacità di eliminare la CO₂ prodotta (↑VE): rischio di acidosi intracellulare paradossa, ipernatriemia, sovraccarico, ↓Ca²⁺ ionizzato, ipokaliemia.'
       };
     }
 
@@ -531,7 +580,7 @@
     if (agInfo) out.steps.push({ n: 4, t: 'Gap anionico / Δ-Δ', txt: `AG ${agInfo.ag}${has(agInfo.agc) ? ' (corretto ' + agInfo.agc + ')' : ''} → ${agInfo.status}. ${delta && delta.ratio != null ? 'Δ/Δ ' + delta.ratio + ': ' + delta.interp : (delta && (delta.interp || delta.naNote)) || ''}` });
 
     // Azioni sintetiche prioritarie
-    if (pH < 7.20) out.actions.push('Acidemia grave: ricerca e trattamento immediato della causa; valutare supporto ventilatorio/emodinamico; considerare NaHCO₃ se pH ≤ 7.20 con AKI KDIGO 2–3 (riduce il ricorso alla dialisi, non la mortalità — BICARICU-2) o perdita di bicarbonato.');
+    if (pH < 7.20) out.actions.push('Acidemia grave: ricerca e trattamento immediato della causa; valutare supporto ventilatorio/emodinamico; considerare NaHCO₃ se pH ≤ 7.20 con AKI KDIGO 2–3 (riduce il ricorso alla KRT, non la mortalità — BICARICU-2; SSC 2026) o perdita di bicarbonato; non di routine nell\'acidosi moderata dello shock (SODa-BIC 2026).');
     if (pH > 7.55) out.actions.push('Alcalemia grave: rischio di aritmie, convulsioni, ↓Ca²⁺ ionizzato, ↓K⁺; correggere causa ed elettroliti, ridurre ventilazione minuto se iatrogena.');
     if (pco2 > 60 && pH < 7.25) out.actions.push('Ipercapnia con acidemia: valutare NIV/ventilazione invasiva o ottimizzazione dei parametri (↑FR/VT entro i limiti protettivi).');
     if (has(I.k) && I.k < 3.0) out.actions.push('Ipokaliemia significativa: correggere prima/durante la correzione dell\'acidosi (l\'alcalinizzazione abbassa ulteriormente il K⁺).');
@@ -587,7 +636,20 @@
     { id: 'C20', name: 'BPCO cronica + acidosi lattica: base HCO₃⁻ = atteso cronico', input: { pH: 7.20, pco2: 60, hco3: 23, na: 140, cl: 97, alb: 4.0, chronicity: 'chronic' },
       expect: { primary: ['RA'], comp: 'non appropriato → disturbo misto', disorders: ['RA', 'MA'], absent: 'MAlk', ratioRange: [0.8, 2.0] } },
     { id: 'C21', name: 'Acidosi metabolica lieve: compenso atteso minimo', input: { pH: 7.34, pco2: 40, hco3: 21.2 },
-      expect: { primary: ['MA'], compVerdict: 'appropriato', comp: 'compenso atteso minimo (disturbo lieve)', disorders: ['MA'] } }
+      expect: { primary: ['MA'], compVerdict: 'appropriato', comp: 'compenso atteso minimo (disturbo lieve)', disorders: ['MA'] } },
+    // --- Regressione revisione v1.2.0 ---
+    { id: 'C22', name: 'PaCO₂ inserita in kPa con unità mmHg (5,3)', input: { pH: 7.40, pco2: 5.3 },
+      expect: { error: true } },
+    { id: 'C23', name: 'Valori negativi/non plausibili esclusi (PaO₂ −80, albumina 35 in g/dL)', input: { pH: 7.40, pco2: 40, hco3: 24.4, po2: -80, fio2: 0.4, na: 140, cl: 104, alb: 35 },
+      expect: { noOxy: true, agc: null, warnMin: 2 } },
+    { id: 'C24', name: 'ARDS non intubato (HFNO): P/F 150 senza gradazione', input: { pH: 7.46, pco2: 33, hco3: 23.2, po2: 75, fio2: 0.5, oxSupport: 'nimv' },
+      expect: { pfClassRe: 'NON intubato' } },
+    { id: 'C25', name: 'Intubato, P/F 90 e S/F 148: grave', input: { pH: 7.30, pco2: 50, hco3: 24.2, po2: 72, fio2: 0.8, spo2: 92, oxSupport: 'imv', peep: 12 },
+      expect: { pf: 90, pfClassRe: '^Grave', sfClassRe: '^Grave' } },
+    { id: 'C26', name: 'Campione venoso: ossigenazione da PvO₂ non calcolata', input: { pH: 7.30, pco2: 50, hco3: 24.2, po2: 40, fio2: 0.4, sample: 'ven' },
+      expect: { noOxy: true, warnRe: 'VENOSO' } },
+    { id: 'C27', name: 'Post-CEC: ΔPCO₂ cv-a 9 mmHg con ScvO₂ 72%', input: { pH: 7.34, pco2: 38, hco3: 20.1, lac: 3.1, pcvco2: 47, scvo2: 72 },
+      expect: { gap: 9, gapRe: '> 6' } }
   ];
 
   function close(a, b, tol) { return a != null && Math.abs(a - b) <= tol; }
@@ -597,6 +659,7 @@
     for (const c of CASES) {
       const res = analyze(c.input);
       const checks = [];
+      if (c.expect.error) { checks.push({ label: 'Errore di validazione segnalato', pass: !res.ok && res.errors.length > 0, got: res.errors.join(' ') }); results.push({ id: c.id, name: c.name, pass: checks.every(x => x.pass), checks, diagnosis: res.errors.join(' ') }); continue; }
       const e = c.expect;
       const codes = res.disorders.map(d => d.code);
       const push = (label, pass, got) => checks.push({ label, pass: !!pass, got });
@@ -627,11 +690,19 @@
       if (e.agNormal != null) push('AG di riferimento = ' + e.agNormal, res.ag && res.ag.normal === e.agNormal, res.ag && res.ag.normal);
       if (e.maType) push('Tipo di acidosi metabolica = ' + e.maType, res.maType === e.maType, res.maType);
       if (e.absent) push('Assente: ' + e.absent, !codes.includes(e.absent), codes.join('+'));
+      if (e.noOxy) push('Ossigenazione da PO₂ non calcolata', !(res.oxy && res.oxy.pf != null), res.oxy && res.oxy.pf);
+      if ('agc' in e && e.agc === null) push('AG non corretto (albumina esclusa)', res.ag && res.ag.agc == null, res.ag && res.ag.agc);
+      if (e.warnMin) push('Avvisi ≥ ' + e.warnMin, res.warnings.length >= e.warnMin, res.warnings.length);
+      if (e.warnRe) push('Avviso ' + e.warnRe, res.warnings.some(w => new RegExp(e.warnRe).test(w)), res.warnings.join(' | '));
+      if (e.pfClassRe) push('Classe P/F ~ ' + e.pfClassRe, res.oxy && new RegExp(e.pfClassRe).test(res.oxy.pfClass), res.oxy && res.oxy.pfClass);
+      if (e.sfClassRe) push('Classe S/F ~ ' + e.sfClassRe, res.oxy && new RegExp(e.sfClassRe).test(res.oxy.sfClass), res.oxy && res.oxy.sfClass);
+      if (e.gap != null) push('ΔPCO₂ cv-a = ' + e.gap, res.perf && close(res.perf.gap, e.gap, 0.2), res.perf && res.perf.gap);
+      if (e.gapRe) push('Interpretazione ΔPCO₂ ' + e.gapRe, res.perf && res.perf.gapInterp.includes(e.gapRe), res.perf && res.perf.gapInterp);
       if (e.stewartNaClNeg) push('Effetto Na–Cl negativo (Stewart)', res.stewart && res.stewart.beNaCl < 0, res.stewart && res.stewart.beNaCl);
       results.push({ id: c.id, name: c.name, pass: checks.every(x => x.pass), checks, diagnosis: res.diagnosis });
     }
     return results;
   }
 
-  return { VERSION, REF, F, analyze, CASES, runValidation, kPa2mmHg, round: r };
+  return { VERSION, CONTENT_DATE, REF, F, analyze, CASES, runValidation, kPa2mmHg, round: r };
 });

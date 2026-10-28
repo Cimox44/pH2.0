@@ -9,13 +9,13 @@
 <link rel="manifest" href="ega-manifest.json">
 <link rel="icon" href="ega-icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="ega-icon-192.png">
-<link rel="stylesheet" href="ega-styles.css">
+<link rel="stylesheet" href="ega-styles.css?v=1.2.0">
 </head>
 <body>
 <header class="top">
   <div class="brand">
     <span class="logo" aria-hidden="true">pH</span>
-    <div><h1>EGA Acido-Base</h1><p class="sub">Interpretazione emogasanalitica completa</p></div>
+    <div><h1>EGA Acido-Base</h1><p class="sub">Interpretazione emogasanalitica · <span class="appv"></span></p></div>
   </div>
   <button id="themeBtn" class="icon-btn" aria-label="Cambia tema">◐</button>
 </header>
@@ -29,7 +29,7 @@
   </div>
 
   <form id="f" autocomplete="off" novalidate>
-    <details open class="grp"><summary>EGA arteriosa <span class="req">obbligatori: pH, PaCO₂</span></summary>
+    <details open class="grp"><summary>Emogasanalisi <span class="req">obbligatori: pH, PaCO₂</span></summary>
       <div class="units"><span>Pressioni:</span>
         <label><input type="radio" name="uP" value="mmHg" checked> mmHg</label>
         <label><input type="radio" name="uP" value="kPa"> kPa</label>
@@ -45,6 +45,23 @@
         <label class="f">SaO₂ <i class="u">%</i><input name="sao2" inputmode="decimal"></label>
         <label class="f">Lattati <i class="u">mmol/L</i><input name="lac" inputmode="decimal"></label>
         <label class="f">Hb <i class="u">g/dL</i><input name="hb" inputmode="decimal"></label>
+        <label class="f">PcvCO₂ <i class="u p">mmHg</i><input name="pcvco2" inputmode="decimal" placeholder="venoso centrale"></label>
+        <label class="f">ScvO₂ <i class="u">%</i><input name="scvo2" inputmode="decimal"></label>
+      </div>
+      <div class="grid g2">
+        <label class="f">Tipo di campione
+          <select name="sample">
+            <option value="art">Arterioso</option>
+            <option value="ven">Venoso (periferico/centrale)</option>
+          </select>
+        </label>
+        <label class="f">Supporto respiratorio
+          <select name="oxSupport">
+            <option value="">Non specificato</option>
+            <option value="imv">Intubato (VAM)</option>
+            <option value="nimv">HFNO ≥ 30 L/min / NIV-CPAP</option>
+          </select>
+        </label>
       </div>
       <label class="f wide">Cronicità del disturbo respiratorio
         <select name="chronicity">
@@ -141,6 +158,8 @@
   <h3>Mappa acido-base</h3>
   <p class="mut">Bande di compenso atteso (PaCO₂ vs HCO₃⁻) con isopleth di pH. Nel calcolatore il punto del paziente viene posizionato sulla mappa.</p>
   <div id="mapStatic"></div>
+  <h3>EGA venosa: quando è utilizzabile</h3>
+  <div id="venous"></div>
   <h3>Errori preanalitici</h3>
   <div id="preanal"></div>
   <h3>Riferimenti</h3>
@@ -155,7 +174,7 @@
   <div id="valList"></div>
 </section>
 
-<p class="disclaimer">Strumento di supporto decisionale per professionisti sanitari. Non sostituisce il giudizio clinico né i protocolli aziendali. Verificare sempre i valori di riferimento del proprio laboratorio.</p>
+<p class="disclaimer"><b class="appver"></b><br>Strumento di supporto decisionale per professionisti sanitari. Non sostituisce il giudizio clinico né i protocolli aziendali. Verificare sempre i valori di riferimento del proprio laboratorio.</p>
 </main>
 
 <nav class="tabs" role="tablist">
@@ -166,8 +185,8 @@
   <button role="tab" data-tab="val"><span>✓</span>Test</button>
 </nav>
 
-<script src="ega-engine.js"></script>
-<script src="ega-content.js"></script>
-<script src="ega-app.js"></script>
+<script src="ega-engine.js?v=1.2.0"></script>
+<script src="ega-content.js?v=1.2.0"></script>
+<script src="ega-app.js?v=1.2.0"></script>
 </body>
 </html>
