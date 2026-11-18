@@ -9,7 +9,7 @@
 <link rel="manifest" href="ega-manifest.json">
 <link rel="icon" href="ega-icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="ega-icon-192.png">
-<link rel="stylesheet" href="ega-styles.css?v=1.3.0">
+<link rel="stylesheet" href="ega-styles.css?v=1.4.0">
 </head>
 <body>
 <header class="top">
@@ -70,6 +70,21 @@
           <option value="chronic">Cronica (&gt; 3–5 giorni)</option>
         </select>
       </label>
+    </details>
+
+    <details class="grp"><summary>EGA precedente e anamnesi <span class="req">acuta / cronica</span></summary>
+      <p class="mut">Il confronto con un EGA precedente è il metodo più affidabile per distinguere un disturbo respiratorio acuto, cronico o acuto su cronico.</p>
+      <div class="grid">
+        <label class="f">PaCO₂ precedente <i class="u p">mmHg</i><input name="prevPco2" inputmode="decimal"></label>
+        <label class="f">HCO₃⁻ precedente <i class="u">mmol/L</i><input name="prevHco3" inputmode="decimal"></label>
+        <label class="f">Ore dall'EGA precedente <i class="u">h</i><input name="prevHours" inputmode="decimal" placeholder="es. 6"></label>
+      </div>
+      <div class="opts hx">
+        <label class="chk"><input type="checkbox" name="hxCOPD"> BPCO</label>
+        <label class="chk"><input type="checkbox" name="hxOHS"> Obesità-ipoventilazione / OSAS</label>
+        <label class="chk"><input type="checkbox" name="hxNM"> Neuromuscolare / gabbia toracica</label>
+        <label class="chk"><input type="checkbox" name="hxHome"> NIV od O₂ domiciliari</label>
+      </div>
     </details>
 
     <details open class="grp"><summary>Elettroliti e albumina</summary>
@@ -185,8 +200,8 @@
   <button role="tab" data-tab="val"><span>✓</span>Test</button>
 </nav>
 
-<script src="ega-engine.js?v=1.3.0"></script>
-<script src="ega-content.js?v=1.3.0"></script>
-<script src="ega-app.js?v=1.3.0"></script>
+<script src="ega-engine.js?v=1.4.0"></script>
+<script src="ega-content.js?v=1.4.0"></script>
+<script src="ega-app.js?v=1.4.0"></script>
 </body>
 </html>

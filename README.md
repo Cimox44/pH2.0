@@ -1,18 +1,18 @@
 # EGA Acido-Base — PWA
 
-Calcolatore emogasanalitico per Terapia Intensiva: disturbo primario, compenso (non/parziale/completo + appropriatezza con formule), gap anionico corretto per albumina, delta gap e Δ/Δ, gap osmolare, gap anionico urinario, Cl⁻ urinario, Stewart/Fencl-Figge e partizione del BE (Story), ossigenazione (PAO₂, A-a, a/A, P/F, S/F secondo la Global Definition ARDS 2024 con distinzione intubato / non intubato, OI, CaO₂), perfusione (ΔPCO₂ veno-arterioso, ScvO₂), modalità campione venoso, ventilazione (PaCO₂–EtCO₂, frazione di spazio morto alveolare, PBW, ventilatory ratio, VE per PaCO₂ target), elettroliti e glicemia con gravità, Cl⁻ corretto per Na⁺, deficit di acqua libera, deficit di bicarbonato, mappa acido-base e disamina completa dei disturbi.
+Calcolatore emogasanalitico per Terapia Intensiva: disturbo primario, compenso (non/parziale/completo + appropriatezza con formule), gap anionico corretto per albumina, delta gap e Δ/Δ, gap osmolare, gap anionico urinario, Cl⁻ urinario, Stewart/Fencl-Figge e partizione del BE (Story), ossigenazione (PAO₂, A-a, a/A, P/F, S/F secondo la Global Definition ARDS 2024 con distinzione intubato / non intubato, OI, CaO₂), perfusione (ΔPCO₂ veno-arterioso, ScvO₂), modalità campione venoso, ventilazione (PaCO₂–EtCO₂, frazione di spazio morto alveolare, PBW, ventilatory ratio, VE per PaCO₂ target), elettroliti e glicemia con gravità, Cl⁻ corretto per Na⁺, deficit di acqua libera, diagnosi differenziale acuta/cronica/acuta su cronica (EGA precedente, concordanza HCO₃⁻/pH/SBE, anamnesi), verifica multi-metodo del disturbo misto (Boston, Copenhagen, gap anionico, Stewart), deficit di bicarbonato, mappa acido-base e disamina completa dei disturbi.
 
 Funziona offline (service worker) ed è installabile su Android come app.
 
 ## Pubblicazione / aggiornamento (GitHub Pages, account Cimox44)
 - Repository: https://github.com/Cimox44/pH2.0 → app: https://cimox44.github.io/pH2.0/
 - Aggiornare: https://github.com/Cimox44/pH2.0/upload/main → trascinare i file modificati (sovrascrivono gli omonimi, nessuna sottocartella) → *Commit changes*.
-- Ogni rilascio: incrementare `VERSION` in `ega-engine.js`, `CACHE` in `ega-sw.js` **e** il suffisso `?v=` dei 4 file richiamati in `index.html` (stesso numero, es. `1.3.0` / `ega-v1.3.0` / `?v=1.3.0`): il service worker scarica i nuovi file e cancella la cache precedente. Sul telefono chiudere e riaprire l'app (eventualmente due volte).
+- Ogni rilascio: incrementare `VERSION` in `ega-engine.js`, `CACHE` in `ega-sw.js` **e** il suffisso `?v=` dei 4 file richiamati in `index.html` (stesso numero, es. `1.4.0` / `ega-v1.4.0` / `?v=1.4.0`): il service worker scarica i nuovi file e cancella la cache precedente. Sul telefono chiudere e riaprire l'app (eventualmente due volte).
 - Android (Chrome): menu ⋮ → **Installa app / Aggiungi a schermata Home**.
 - La versione installata è visibile nell'intestazione, in fondo a ogni pagina e nella scheda **Test**.
 
 ## Validazione
-- Tab **Test** nell'app: 30 casi di riferimento eseguiti dal vivo sul motore.
+- Tab **Test** nell'app: 35 casi di riferimento eseguiti dal vivo sul motore.
 - (Test da terminale opzionale: `node -e "console.log(require('./ega-engine.js').runValidation().every(r=>r.pass))"`)
 
 ## File (11, tutti nella radice, nessuna sottocartella)
@@ -30,6 +30,13 @@ Funziona offline (service worker) ed è installabile su Android come app.
 Il prefisso `ega-` evita che Android rinomini i file (es. `app-1.js`) quando nella cartella Download esistono file omonimi di altre app.
 
 ## Changelog
+- **v1.4.0 (18/11/2026)**: diagnosi differenziale e disturbo misto
+  - *Nuova sezione "EGA precedente e anamnesi"*: PaCO₂ e HCO₃⁻ precedenti (anche in kPa), ore trascorse, BPCO / OHS-OSAS / neuromuscolare / NIV-O₂ domiciliari.
+  - *Scheda 3b "Acuta o cronica?"*: (1) con EGA precedente → acuta, cronica, **acuta su cronica**, subacuta, riduzione acuta in ipercapnico cronico, **alcalosi metabolica post-ipercapnica**, nuova componente metabolica (HCO₃⁻ atteso = basale + 0,1/0,35 × ΔPaCO₂; 0,2/0,4 per le riduzioni); (2) senza EGA precedente → concordanza di HCO₃⁻, pH e SBE (0 = acuta, 1 = cronica) con **affidabilità** calcolata dalla separazione tra gli attesi (bassa < 2 mmol/L, cioè ΔPaCO₂ < 8 mmHg) e dai fattori confondenti (Cl⁻ corretto alterato, albumina < 3, disturbo metabolico, campione venoso); (3) l'anamnesi orienta solo quando gli indici non bastano ("probabilmente cronica"). L'app dichiara "non distinguibile" invece di forzare la diagnosi.
+  - *Scheda 3c "Disturbo misto: verifica con 4 metodi"*: Boston, Copenhagen (SBE, Schlichtig 1998), gap anionico/Δ-Δ, Stewart semplificato (Story, anche senza albumina con residuo SBE − effetto Na–Cl). Esito: **confermato** (≥ 2 metodi concordi), **possibile** (1 metodo), **nascosto** (componenti metaboliche opposte rilevate solo con Stewart), semplice; con affidabilità e dati mancanti.
+  - Δ/Δ: con EGA precedente l'HCO₃⁻ di base è quello atteso dal basale.
+  - Acuta con HCO₃⁻ nel range: "disturbo lieve con pH nel range" invece di "completamente compensato".
+  - 5 nuovi casi di regressione (C31–C35) → 35 casi, 161 verifiche; nuovo riferimento Adrogué-Madias JASN 2010.
 - **v1.3.0 (revisione trimestrale, 18/11/2026)**
   - *Compenso nei disturbi respiratori*: il compenso renale è riconosciuto anche dall'SBE (> +2 nell'acidosi, < −2 nell'alcalosi respiratoria) e non solo da HCO₃⁻ fuori 22–26. Con pH nel range e nessun compenso la classificazione è "disturbo lieve con pH nel range" invece di "non compensato" (prima: pH NORMALE + "non compensato", etichette contraddittorie). Etichetta "acuta/cronica non distinguibile" al posto di "indeterminabile (ΔPaCO₂ piccola)".
   - *Nuova scheda Elettroliti e glicemia*: Na⁺, K⁺, Cl⁻, Ca²⁺ ionizzato, Mg²⁺, fosfato, glucosio confrontati con i range dell'adulto e graduati (lieve/moderata/grave), con chip nella diagnosi integrata e nel referto copiato. Prima ipernatriemia e ipercloremia non venivano segnalate.

@@ -45,7 +45,8 @@ function updateUnitLabels() {
   $$('.u.g').forEach(e => e.textContent = u.g === 'mmol' ? 'mmol/L' : 'mg/dL');
   $('.ulab').textContent = u.u === 'bun' ? 'BUN' : 'Urea (azotemia)';
 }
-const NUMS = ['pH', 'pco2', 'hco3', 'be', 'po2', 'fio2', 'spo2', 'sao2', 'lac', 'hb', 'na', 'k', 'cl', 'alb', 'ica', 'mg', 'phos', 'agNormal', 'glu', 'urea', 'osmMeas', 'etoh', 'uNa', 'uK', 'uCl', 'age', 'height', 'weight', 'patm', 'peep', 'map', 'etco2', 've', 'pco2Target', 'hco3Target', 'pcvco2', 'scvo2'];
+const NUMS = ['pH', 'pco2', 'hco3', 'be', 'po2', 'fio2', 'spo2', 'sao2', 'lac', 'hb', 'na', 'k', 'cl', 'alb', 'ica', 'mg', 'phos', 'agNormal', 'glu', 'urea', 'osmMeas', 'etoh', 'uNa', 'uK', 'uCl', 'age', 'height', 'weight', 'patm', 'peep', 'map', 'etco2', 've', 'pco2Target', 'hco3Target', 'pcvco2', 'scvo2', 'prevPco2', 'prevHco3', 'prevHours'];
+const HX = ['hxCOPD', 'hxOHS', 'hxNM', 'hxHome'];
 const num = (v) => { if (v === '' || v == null) return null; const x = parseFloat(String(v).replace(',', '.')); return isFinite(x) ? x : null; };
 
 function readInputs() {
@@ -53,7 +54,8 @@ function readInputs() {
   NUMS.forEach(n => { I[n] = num(form[n].value); });
   I.chronicity = form.chronicity.value; I.sex = form.sex.value; I.useK = form.useK.checked;
   I.sample = form.sample.value; I.oxSupport = form.oxSupport.value;
-  if (u.p === 'kPa') ['pco2', 'po2', 'etco2', 'pco2Target', 'pcvco2'].forEach(k => { if (I[k] != null) I[k] = I[k] * E.kPa2mmHg; });
+  HX.forEach(k => { I[k] = form[k].checked; });
+  if (u.p === 'kPa') ['pco2', 'po2', 'etco2', 'pco2Target', 'pcvco2', 'prevPco2'].forEach(k => { if (I[k] != null) I[k] = I[k] * E.kPa2mmHg; });
   if (u.a === 'gl' && I.alb != null) I.alb = I.alb / 10;
   if (u.g === 'mmol' && I.glu != null) I.glu = I.glu * 18.016;
   if (u.u === 'bun') { I.bun = I.urea; I.urea = null; }
@@ -63,6 +65,7 @@ function saveForm() {
   const s = {};
   NUMS.forEach(n => s[n] = form[n].value);
   s.chronicity = form.chronicity.value; s.sex = form.sex.value; s.useK = form.useK.checked; s.sample = form.sample.value; s.oxSupport = form.oxSupport.value;
+  HX.forEach(k => s[k] = form[k].checked);
   s.uP = form.uP.value; s.uA = form.uA.value; s.uG = form.uG.value; s.uU = form.uU.value;
   store.set('form', s);
 }
@@ -74,6 +77,7 @@ function loadForm(s) {
   if (s.sample) form.sample.value = s.sample;
   if (s.oxSupport != null) form.oxSupport.value = s.oxSupport;
   form.useK.checked = !!s.useK;
+  HX.forEach(k => { form[k].checked = !!s[k]; });
   ['uP', 'uA', 'uG', 'uU'].forEach(k => { if (s[k]) form[k].value = s[k]; });
   updateUnitLabels();
 }
@@ -89,7 +93,7 @@ sel.addEventListener('change', () => {
   form.reset(); form.uP.value = 'mmHg'; form.uA.value = 'gdl'; form.uG.value = 'mg'; form.uU.value = 'urea';
   Object.entries(c.input).forEach(([k, v]) => {
     if (k === 'chronicity') form.chronicity.value = v;
-    else if (k === 'useK') form.useK.checked = !!v;
+    else if (k === 'useK' || HX.includes(k)) form[k].checked = !!v;
     else if (form[k]) form[k].value = String(v);
   });
   updateUnitLabels(); compute(); sel.value = '';
@@ -203,6 +207,34 @@ function compute() {
     R.compChecks.forEach(c => { h += `<p>${esc(c.text)}</p>`; if (c.alt) h += `<p class="mut">${esc(c.alt)}</p>`; });
   } else if (!R.primary.length) h += `<p class="mut">Nessun disturbo primario: compenso non applicabile.</p>`;
   h += `</div>`;
+
+  // Diagnosi differenziale acuta / cronica
+  if (R.chron) {
+    const ch = R.chron;
+    h += `<div class="card"><h3><span class="n">3b</span>Acuta o cronica? Diagnosi differenziale</h3><p>Metodo: <b>${esc(ch.method)}</b>${R.respAcuity ? ' · conclusione: <b>' + esc(R.respAcuity) + '</b>' : ''}</p>`;
+    if (ch.baseline) {
+      const b = ch.baseline;
+      h += table(['EGA precedente', 'Valore'], [
+        ['Basale', `PaCO₂ ${fmt(b.prevPco2, 1)} · HCO₃⁻ ${fmt(b.prevHco3, 1)}${b.hours != null ? ' · ' + fmt(b.hours, 0) + ' h fa' : ''} → ${esc(b.basal)}`],
+        ['Variazione', `ΔPaCO₂ ${fmt(b.dP, 1)} mmHg · ΔHCO₃⁻ ${fmt(b.dH, 1)} mmol/L`]].concat(b.expAcute != null ? [['HCO₃⁻ atteso dal basale', `acuto ${fmt(b.expAcute, 1)} · cronico ${fmt(b.expChronic, 1)} (± 2)`]] : []).concat([
+        ['Esito', `<b>${esc(b.verdict)}</b> <span class="mut">(affidabilità ${esc(b.reliability)})</span>`]]));
+      h += `<p>${esc(b.text)}</p>`;
+    }
+    if (ch.score) {
+      const sc = ch.score;
+      h += table(['Indice', 'Acuta → cronica', 'Misurato'], sc.indices.map(i => { const d = i.k === 'pH' ? 2 : 1; return [i.k, `<span class="num">${fmt(i.acute, d)} → ${fmt(i.chronic, d)}</span>`, `<span class="num"><b>${fmt(i.actual, d)}</b></span><br><span class="meter" title="0 = acuta, 1 = cronica"><span style="left:${Math.round(i.t * 100)}%"></span></span><span class="mut">${esc(i.lean)}</span>`]; }));
+      h += `<p class="${sc.reliability === 'bassa' ? 'mut' : ''}">Concordanza ${fmt(sc.score, 2)} (0 = acuta, 1 = cronica) · separazione tra attesi ${fmt(sc.sep, 1)} mmol/L · affidabilità <b class="${sc.reliability === 'alta' ? 'v-ok' : sc.reliability === 'moderata' ? 'v-mid' : 'v-bad'}">${esc(sc.reliability)}</b></p><p>${esc(sc.text)}</p>`;
+      if (sc.confounders.length) h += `<p class="mut">Fattori confondenti: ${esc(sc.confounders.join('; '))}.</p>`;
+    }
+    h += `<p class="mut">Con un solo EGA acuta e cronica sono separabili in modo affidabile solo se ΔPaCO₂ ≳ 16 mmHg (acidosi) o ≳ 20 mmHg (alcalosi): sotto queste soglie gli attesi si sovrappongono entro la tolleranza ± 2.</p></div>`;
+  }
+  // Verifica multi-metodo del disturbo misto
+  if (R.mixed) {
+    const mx = R.mixed;
+    h += `<div class="card"><h3><span class="n">3c</span>Disturbo misto: verifica con ${mx.methods.length} metodi</h3><div class="alert ${mx.level === 'confermato' || mx.level === 'nascosto' ? 'warn' : 'note'}"><b>${esc(mx.verdict)}</b></div>`;
+    h += table(['Metodo', 'Disturbi identificati'], mx.methods.map(m => [`<b>${esc(m.m)}</b><br><span class="mut">${esc(m.txt)}</span>`, m.found === null ? '<span class="mut">non calcolabile</span>' : (m.found.length ? m.found.map(esc).join('<br>') : 'nessun disturbo')]));
+    h += `<p class="mut">Confermato = la stessa componente è rilevata da ≥ 2 metodi indipendenti; possibile = da un solo metodo; nascosto = componenti metaboliche opposte rilevate solo con Stewart (SBE e HCO₃⁻ quasi normali). Affidabilità complessiva: <b>${esc(mx.reliability)}</b>${mx.missing.length ? ' · dati utili mancanti: ' + esc(mx.missing.join(', ')) : ''}.</p></div>`;
+  }
 
   // Step 4 AG
   h += `<div class="card"><h3><span class="n">4</span>Gap anionico e delta gap</h3>`;
@@ -340,6 +372,8 @@ function copyReport() {
   if (R.lyteSummary && R.lyteSummary.length) L.push('Elettroliti: ' + R.lyteSummary.join('; ') + (R.clCorr != null ? ` | Cl corretto ${fmt(R.clCorr, 1)}` : '') + (R.fwd ? ` | deficit acqua libera ${fmt(R.fwd.value, 1)} L` : ''));
   L.push('Diagnosi: ' + R.diagnosis);
   R.compChecks.forEach(c => L.push('Compenso: ' + c.text));
+  if (R.chron) L.push('Acuta/cronica: ' + (R.respAcuity || '') + ' [' + R.chron.method + (R.chron.score ? ', affidabilità ' + R.chron.score.reliability : '') + ']');
+  if (R.mixed) L.push('Disturbo misto (multi-metodo): ' + R.mixed.verdict);
   if (R.delta && R.delta.interp) L.push('Δ/Δ: ' + R.delta.interp);
   if (R.perf && R.perf.gap != null) L.push(`ΔPCO2 cv-a ${fmt(R.perf.gap, 1)} mmHg` + (R.perf.scvo2 != null ? ` | ScvO2 ${fmt(R.perf.scvo2, 0)}%` : ''));
   if (I.sample === 'ven') L.push('Campione: VENOSO');

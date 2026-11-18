@@ -1,6 +1,6 @@
 /*!
  * EGA Analyzer — motore di calcolo acido-base / ventilatorio / ossigenazione
- * Versione 1.3.0 (2026-11, revisione trimestrale) — Cimox44
+ * Versione 1.4.0 (2026-11, diagnosi differenziale acuta/cronica e disturbo misto multi-metodo) — Cimox44
  * Modulo UMD: usabile nel browser (window.EGA) e in Node (require).
  * Unità interne: mmHg, mmol/L (= mEq/L per ioni monovalenti), albumina g/dL,
  * glucosio mg/dL, BUN mg/dL, Hb g/dL, FiO2 frazione (0.21–1.0).
@@ -11,7 +11,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '1.3.0';
+  const VERSION = '1.4.0';
   const CONTENT_DATE = 'novembre 2026';
 
   // ---- Valori di riferimento (adulto, sangue arterioso, 37 °C) ----
@@ -95,7 +95,7 @@
   function analyze(raw, opts) {
     opts = opts || {};
     const I = {};
-    for (const k in raw) I[k] = (typeof raw[k] === 'string' && !['chronicity', 'sex', 'sample', 'oxSupport'].includes(k)) ? num(raw[k]) : raw[k];
+    for (const k in raw) I[k] = (typeof raw[k] === 'string' && !['chronicity', 'sex', 'sample', 'oxSupport', 'hxCOPD', 'hxOHS', 'hxNM', 'hxHome'].includes(k)) ? num(raw[k]) : raw[k];
     if (typeof I.useK === 'string') I.useK = I.useK === 'true';
     const venous = I.sample === 'ven';
     const out = {
@@ -128,7 +128,8 @@
       age: [14, 120, 'Età', 'anni'], height: [100, 250, 'Altezza', 'cm'], weight: [20, 350, 'Peso', 'kg'], patm: [350, 800, 'P atmosferica', 'mmHg'],
       peep: [0, 30, 'PEEP', 'cmH₂O'], map: [1, 50, 'Paw media', 'cmH₂O'], etco2: [1, 150, 'EtCO₂', 'mmHg'], ve: [0.5, 40, 'VE', 'L/min'],
       pco2Target: [20, 100, 'PaCO₂ target', 'mmHg'], hco3Target: [10, 30, 'HCO₃⁻ target', 'mmol/L'], fio2: [0.21, 100, 'FiO₂', ''],
-      pcvco2: [10, 200, 'PcvCO₂', 'mmHg'], scvo2: [10, 100, 'ScvO₂', '%']
+      pcvco2: [10, 200, 'PcvCO₂', 'mmHg'], scvo2: [10, 100, 'ScvO₂', '%'],
+      prevPco2: [10, 200, 'PaCO₂ precedente', 'mmHg'], prevHco3: [2, 70, 'HCO₃⁻ precedente', 'mmol/L'], prevHours: [0, 2160, 'Intervallo dall\'EGA precedente', 'h']
     };
     for (const k in BOUNDS) {
       if (!has(I[k])) continue;
@@ -316,6 +317,100 @@
         out.compChecks.push({ forCode: 'MAlk', rule: 'PaCO₂ = 0.7·HCO₃⁻ + 20 ± 5', variable: 'PaCO₂', unit: 'mmHg', expected: r(e, 1), lo: r(e - 5, 1), hi: r(e + 5, 1), actual: r(pco2, 1), verdict: 'insufficiente', text: 'PaCO₂ inferiore all\'atteso: componente respiratoria primaria alcalinizzante.' });
       }
     }
+    // --- Diagnosi differenziale acuta / cronica / acuta su cronica (v1.4.0) ---
+    // 1) EGA precedente (metodo più affidabile)  2) concordanza di HCO₃⁻, pH e SBE  3) anamnesi
+    const hx = [['hxCOPD', 'BPCO'], ['hxOHS', 'obesità-ipoventilazione / OSAS'], ['hxNM', 'malattia neuromuscolare o della gabbia toracica'], ['hxHome', 'NIV od O₂ domiciliari']].filter(([k]) => I[k] === true || I[k] === 'true').map(([, l]) => l);
+    const cx = { hx, method: null };
+    let baselineExpHCO3 = null;
+    if (has(I.prevPco2) && has(I.prevHco3)) {
+      const pp = I.prevPco2, ph0 = I.prevHco3, hrs = has(I.prevHours) ? I.prevHours : null;
+      const basalChronicHyper = pp > 45 && ph0 >= F.raChronicHCO3(pp) - 2;
+      const basalChronicHypo = pp < 35 && ph0 <= F.ralkChronicHCO3(pp) + 2;
+      const basal = pp > 45 ? (basalChronicHyper ? 'ipercapnia cronica compensata' : 'ipercapnia non compensata (acuta)') : pp < 35 ? (basalChronicHypo ? 'ipocapnia cronica compensata' : 'ipocapnia acuta') : 'normocapnia';
+      const dP = pco2 - pp, dH = hco3 - ph0;
+      const b = { prevPco2: r(pp, 1), prevHco3: r(ph0, 1), hours: hrs, basal, dP: r(dP, 1), dH: r(dH, 1) };
+      let verdict, met = null, txt;
+      if (Math.abs(dP) < 5) {
+        if (Math.abs(dH) > 3) { met = dH > 0 ? 'MAlk' : 'MA'; verdict = basalChronicHyper ? 'cronica (invariata)' : 'invariata'; txt = `PaCO₂ invariata (Δ ${r(dP, 1)} mmHg) ma HCO₃⁻ variato di ${r(dH, 1)} mmol/L → nuova componente metabolica (${met === 'MAlk' ? 'alcalosi' : 'acidosi'} metabolica).`; }
+        else { verdict = (basalChronicHyper || basalChronicHypo) ? 'cronica (stabile rispetto all\'EGA precedente)' : 'invariata rispetto all\'EGA precedente'; txt = `PaCO₂ e HCO₃⁻ sovrapponibili all'EGA precedente (basale: ${basal}).`; }
+        if (basalChronicHyper || basalChronicHypo) baselineExpHCO3 = ph0;
+      } else {
+        const kA = dP > 0 ? 0.1 : 0.2, kC = dP > 0 ? 0.35 : 0.4;
+        const expA = ph0 + kA * dP, expC = ph0 + kC * dP;
+        b.expAcute = r(expA, 1); b.expChronic = r(expC, 1);
+        const inA = Math.abs(hco3 - expA) <= 2, inC = Math.abs(hco3 - expC) <= 2;
+        const lo = Math.min(expA, expC) - 2, hi = Math.max(expA, expC) + 2;
+        const onChronic = dP > 0 && basalChronicHyper;
+        const acuteLab = onChronic ? 'acuta su cronica' : (dP < 0 && basalChronicHyper ? 'riduzione acuta della PaCO₂ in ipercapnico cronico' : 'acuta');
+        if (hco3 > hi || hco3 < lo) {
+          met = hco3 > hi ? 'MAlk' : 'MA';
+          verdict = (met === 'MAlk' && dP < 0 && basalChronicHyper) ? 'alcalosi metabolica post-ipercapnica' : acuteLab + ' + componente metabolica';
+          txt = `HCO₃⁻ ${r(hco3, 1)} fuori dagli attesi calcolati dall'EGA precedente (acuto ${r(expA, 1)}, cronico ${r(expC, 1)} ± 2) → ${met === 'MAlk' ? 'alcalosi' : 'acidosi'} metabolica associata` + (verdict.startsWith('alcalosi metabolica post') ? ': il rene non ha ancora eliminato l\'HCO₃⁻ trattenuto durante l\'ipercapnia cronica (ridurre la ventilazione gradualmente; Cl⁻ e K⁺; acetazolamide se necessario).' : '.');
+          baselineExpHCO3 = hrs != null && hrs >= 72 ? expC : expA;
+        } else if (hrs != null && hrs < 24) {
+          verdict = inA ? acuteLab : 'variazione rapida dell\'HCO₃⁻ non spiegata dal solo tamponamento (< 24 h): sospettare componente metabolica';
+          if (!inA) met = hco3 > expA ? 'MAlk' : 'MA';
+          txt = `Intervallo ${hrs} h (< 24 h): atteso il solo tamponamento acuto → HCO₃⁻ atteso ${r(expA, 1)} ± 2 (misurato ${r(hco3, 1)}).`;
+          baselineExpHCO3 = expA;
+        } else if (inA && !inC) { verdict = acuteLab; txt = `HCO₃⁻ coerente con variazione ACUTA rispetto all'EGA precedente (atteso ${r(expA, 1)} ± 2).`; baselineExpHCO3 = expA; }
+        else if (inC && !inA) { verdict = onChronic ? 'cronica (riacutizzazione con compenso già completato)' : 'cronica / compenso renale completato'; txt = `HCO₃⁻ coerente con compenso renale COMPLETATO rispetto all'EGA precedente (atteso ${r(expC, 1)} ± 2)` + (hrs != null && hrs < 72 ? ` — ma l'intervallo (${hrs} h) è breve per un compenso completo: verificare.` : '.'); baselineExpHCO3 = expC; }
+        else if (inA && inC) { const near = Math.abs(hco3 - expA) <= Math.abs(hco3 - expC); verdict = near ? acuteLab : 'subacuta / in evoluzione'; txt = `HCO₃⁻ compatibile con entrambi gli attesi (acuto ${r(expA, 1)}, cronico ${r(expC, 1)}): più vicino al ${near ? 'acuto' : 'cronico'}.`; baselineExpHCO3 = near ? expA : expC; }
+        else { verdict = 'subacuta / in evoluzione (24–72 h)'; txt = `HCO₃⁻ intermedio tra atteso acuto (${r(expA, 1)}) e cronico (${r(expC, 1)}): compenso renale in corso.`; baselineExpHCO3 = hco3; }
+      }
+      b.verdict = verdict; b.text = txt; b.met = met;
+      b.reliability = hrs != null ? 'alta' : 'moderata-alta (indicare l\'intervallo in ore)';
+      cx.baseline = b; cx.method = 'EGA precedente';
+      if (met && primary.length === 1 && !primary.includes(met) && !extra.includes(met)) extra.push(met);
+    }
+    if (primary.length === 1 && isResp(primary[0])) {
+      const p = primary[0], dP = pco2 - REF.PaCO2n;
+      const a = p === 'RA' ? F.raAcuteHCO3(pco2) : F.ralkAcuteHCO3(pco2), c = p === 'RA' ? F.raChronicHCO3(pco2) : F.ralkChronicHCO3(pco2);
+      const clip = (t) => Math.max(0, Math.min(1, t));
+      const pos = (x, xa, xc) => Math.abs(xc - xa) < 1e-9 ? 0.5 : clip((x - xa) / (xc - xa));
+      const idx = [
+        { k: 'HCO₃⁻', acute: r(a, 1), chronic: r(c, 1), actual: r(hco3, 1), t: pos(hco3, a, c) },
+        { k: 'pH', acute: r(F.pHacuteResp(pco2), 2), chronic: r(F.pHchronicResp(pco2), 2), actual: r(pH, 2), t: pos(pH, F.pHacuteResp(pco2), F.pHchronicResp(pco2)) },
+        { k: 'SBE (Copenhagen)', acute: 0, chronic: r(0.4 * dP, 1), actual: r(sbe, 1), t: pos(sbe, 0, 0.4 * dP) }
+      ];
+      idx.forEach(i => { i.t = r(i.t, 2); i.lean = i.t < 0.4 ? 'acuta' : i.t > 0.6 ? 'cronica' : 'intermedio'; });
+      const score = idx.reduce((s, i) => s + i.t, 0) / idx.length;
+      const sep = Math.abs(c - a); // separazione tra attesi (mmol/L)
+      let rel = sep > 4 ? 'alta' : sep >= 2 ? 'moderata' : 'bassa';
+      const conf = [];
+      if (venous) conf.push('campione venoso');
+      if (has(I.na) && has(I.cl)) { const cc = F.clCorr(I.cl, I.na); if (cc > 106 || cc < 98) conf.push(`Cl⁻ corretto ${r(cc, 1)} (alterazione del SID: sposta HCO₃⁻/SBE indipendentemente dalla PaCO₂)`); }
+      if (has(I.alb) && I.alb < 3) conf.push(`albumina ${I.alb} g/dL (alcalosi ipoalbuminemica)`);
+      if (extra.some(x => x === 'MA' || x === 'MAlk')) conf.push('disturbo metabolico associato');
+      if (conf.length && rel !== 'bassa') rel = rel === 'alta' ? 'moderata' : 'bassa';
+      let verdict = score < 0.33 ? 'acuta' : score > 0.67 ? 'cronica' : 'subacuta / in evoluzione (o acuta su cronica)';
+      const leanTxt = score < 0.5 ? 'acuta' : 'subacuta/cronica';
+      const nMid = idx.filter(i => i.lean === 'intermedio').length;
+      const nLean = idx.filter(i => i.lean === (score < 0.5 ? 'acuta' : 'cronica')).length + '/3' + (nMid ? `, ${nMid} intermedi${nMid > 1 ? '' : 'o'}` : '');
+      let concl;
+      if (rel === 'bassa') {
+        concl = `Non distinguibile con un solo EGA: gli attesi acuto e cronico differiscono di ${r(sep, 1)} mmol/L (< tolleranza ± 2${conf.length ? ', con fattori confondenti' : ''}). Orientamento: ${leanTxt} (indici: ${nLean}).`;
+        if (hx.length && score >= 0.5) { verdict = 'probabilmente cronica'; concl += ` Anamnesi compatibile (${hx.join(', ')}): compenso cronico preesistente probabile.`; }
+        else if (hx.length) concl += ` Anamnesi (${hx.join(', ')}) suggerisce ipercapnia cronica di base: possibile acuta su cronica.`;
+        else verdict = 'non distinguibile';
+        concl += ' Per una diagnosi affidabile inserire un EGA precedente.';
+      } else {
+        concl = `Indici orientati verso forma ${verdict} (${nLean}) con affidabilità ${rel}.` + (hx.length ? ` Anamnesi: ${hx.join(', ')}${score < 0.5 ? ' → considerare acuta su cronica.' : '.'}` : '');
+      }
+      cx.score = { indices: idx, score: r(score, 2), sep: r(sep, 1), reliability: rel, confounders: conf, verdict, text: concl };
+      if (!cx.method) cx.method = 'concordanza HCO₃⁻ / pH / SBE' + (hx.length ? ' + anamnesi' : '');
+    }
+    // Aggiorna la cronicità del disturbo respiratorio (solo in modalità automatica)
+    if (chron === 'auto' && primary.length === 1 && isResp(primary[0])) {
+      if (cx.baseline) respAcuity = cx.baseline.verdict.replace(' + componente metabolica', '');
+      else if (cx.score && /non distinguibile|in evoluzione/.test(respAcuity || '')) {
+        if (cx.score.verdict === 'probabilmente cronica') respAcuity = 'probabilmente cronica (anamnesi + indici)';
+        else if (cx.score.reliability !== 'bassa') respAcuity = cx.score.verdict;
+      }
+    }
+    if (cx.method) out.chron = cx;
+    out.baselineExpHCO3 = baselineExpHCO3;
+
+    if (/^(acuta$|acuta su|riduzione acuta)/.test(respAcuity || '') && compStatus === 'completamente compensato' && !hco3Hi && !hco3Lo) compStatus = 'disturbo lieve con pH nel range (compenso atteso minimo)';
     // Se l'analisi del compenso rivela un secondo disturbo, la classificazione tradizionale non è applicabile
     if (primary.length === 1 && extra.length && !/^assente/.test(compStatus || '')) compStatus = 'non appropriato → disturbo misto';
     out.compStatus = compStatus;
@@ -354,6 +449,7 @@
         if (respAcuity === 'cronica') { baseHCO3 = cc.chronic; baseNote = 'HCO₃⁻ di base = atteso per compenso cronico'; }
         else if (respAcuity === 'acuta') { baseHCO3 = cc.acute; baseNote = 'HCO₃⁻ di base = atteso per compenso acuto'; }
       }
+      if (has(baselineExpHCO3)) { baseHCO3 = baselineExpHCO3; baseNote = 'HCO₃⁻ di base = atteso calcolato dall\'EGA precedente'; }
       const dAG = agInfo.use - agN;
       const dHCO3 = baseHCO3 - hco3;
       const corrHCO3 = hco3 + dAG;
@@ -588,7 +684,8 @@
     const order = primary.concat(extra);
     for (const c of order) {
       const isPrim = primary.includes(c);
-      const lbl = c === 'MA' ? maLabel() : isResp(c) ? respLabel(c) : LABEL[c];
+      let lbl = c === 'MA' ? maLabel() : isResp(c) ? respLabel(c) : LABEL[c];
+      if (c === 'MAlk' && out.chron && out.chron.baseline && /post-ipercapnica/.test(out.chron.baseline.verdict)) lbl += ' post-ipercapnica';
       add(c, lbl, isPrim ? (primary.length > 1 ? 'primario (misto)' : 'primario') : 'concomitante (da analisi del compenso)');
     }
     if (agInfo) {
@@ -629,6 +726,80 @@
     out.steps.push({ n: 2, t: 'Disturbo primario', txt: primary.length ? primary.map(c => LABEL[c]).join(' + ') + (primaryNote ? ' — ' + primaryNote : '') : 'Nessuna alterazione primaria di PaCO₂/HCO₃⁻.' });
     out.steps.push({ n: 3, t: 'Compenso', txt: (compStatus ? 'Stato: ' + compStatus + '. ' : '') + out.compChecks.map(c => c.text).join(' ') });
     if (agInfo) out.steps.push({ n: 4, t: 'Gap anionico / Δ-Δ', txt: `AG ${agInfo.ag}${has(agInfo.agc) ? ' (corretto ' + agInfo.agc + ')' : ''} → ${agInfo.status}. ${delta && delta.ratio != null ? 'Δ/Δ ' + delta.ratio + ': ' + delta.interp : (delta && (delta.interp || delta.naNote)) || ''}` });
+
+    // --- Verifica multi-metodo del disturbo misto (v1.4.0) ---
+    // Boston (formule di compenso) · Copenhagen (SBE, Schlichtig 1998) · gap anionico/Δ-Δ · Stewart semplificato (Story 2004)
+    {
+      const NM = { RA: 'Acidosi respiratoria', RAlk: 'Alcalosi respiratoria', MA: 'Acidosi metabolica', MAlk: 'Alcalosi metabolica' };
+      const support = {}; const methods = [];
+      const sup = (code, m) => { (support[code] = support[code] || new Set()).add(m); };
+      // 1. Boston
+      const bos = primary.concat(extra.filter(x => !primary.includes(x)));
+      bos.forEach(c => sup(c, 'Boston'));
+      methods.push({ m: 'Boston (formule di compenso)', found: bos.map(c => NM[c]), txt: out.compChecks.map(c => c.rule + ' → ' + (c.verdict || '')).join(' · ') || (primary.length ? '' : 'nessun disturbo primario') });
+      // 2. Copenhagen (SBE)
+      const cop = []; const tolP = 5, tolB = 2; let copTxt = '';
+      const metFromSBE = () => { if (sbe < -tolB) cop.push('MA'); else if (sbe > tolB) cop.push('MAlk'); };
+      if (primary.length === 0) { metFromSBE(); if (pco2 > 45) cop.push('RA'); if (pco2 < 35) cop.push('RAlk'); copTxt = `SBE ${r(sbe, 1)} (normale ±2)`; }
+      else if (primary.length === 2) { primary.forEach(c => cop.push(c)); copTxt = 'due componenti primarie concordi'; }
+      else {
+        const p = primary[0];
+        if (p === 'MA' || p === 'MAlk') {
+          cop.push(p);
+          const e = p === 'MA' ? 40 + sbe : 40 + 0.6 * sbe;
+          copTxt = `PaCO₂ attesa = 40 + ${p === 'MA' ? 'SBE' : '0,6·SBE'} = ${r(e, 1)} ± ${tolP} mmHg (misurata ${r(pco2, 1)})`;
+          if (pco2 > e + tolP) cop.push('RA'); else if (pco2 < e - tolP) cop.push('RAlk');
+        } else {
+          cop.push(p);
+          const ca = 0, cc = 0.4 * (pco2 - 40), lo = Math.min(ca, cc) - tolB, hi = Math.max(ca, cc) + tolB;
+          copTxt = `SBE atteso: acuta ≈ 0, cronica ≈ 0,4·ΔPaCO₂ = ${r(cc, 1)} → range ${r(lo, 1)}…${r(hi, 1)} (misurato ${r(sbe, 1)})`;
+          if (sbe < lo) cop.push('MA'); else if (sbe > hi) cop.push('MAlk');
+        }
+      }
+      cop.forEach(c => sup(c, 'Copenhagen'));
+      methods.push({ m: 'Copenhagen (SBE)', found: cop.map(c => NM[c]), txt: copTxt });
+      // 3. Gap anionico / Δ-Δ
+      if (agInfo) {
+        const ag = []; let t = `AG ${agInfo.use} (${agInfo.status})`;
+        if (agInfo.status === 'elevato') { ag.push('MA'); t += ' → HAGMA'; }
+        if (delta && delta.ratio != null && delta.ratio < 0.8 && maPresent) t += ' · Δ/Δ ' + delta.ratio + ' → NAGMA associata';
+        if (delta && ((delta.ratio != null && delta.ratio > 2 && agInfo.status === 'elevato') || (delta.ratio == null && agInfo.status === 'elevato' && delta.corrHigh))) { ag.push('MAlk'); t += ' · Δ/Δ o HCO₃⁻ corretto → alcalosi metabolica associata'; }
+        ag.forEach(c => sup(c, 'Gap anionico'));
+        methods.push({ m: 'Gap anionico / Δ-Δ', found: ag.map(c => NM[c]), txt: t });
+      } else methods.push({ m: 'Gap anionico / Δ-Δ', found: null, txt: 'non calcolabile (inserire Na⁺ e Cl⁻)' });
+      // 4. Stewart semplificato (Story): effetto Na–Cl sempre; albumina se inserita
+      let hidden = null;
+      if (has(I.na) && has(I.cl)) {
+        const eNaCl = I.na - I.cl - 38, eAlb = has(I.alb) ? 0.25 * (42 - I.alb * 10) : null;
+        const eUA = has(eAlb) ? sbe - eNaCl - eAlb : null;
+        const acid = [], alk = [];
+        if (eNaCl < -2) acid.push(`ipercloremica/da diluizione (Na–Cl ${r(eNaCl, 1)})`); if (eNaCl > 2) alk.push(`ipocloremica/da contrazione (Na–Cl +${r(eNaCl, 1)})`);
+        if (has(eAlb) && eAlb > 2) alk.push(`ipoalbuminemica (+${r(eAlb, 1)})`);
+        if (has(eUA) && eUA < -2) acid.push(`anioni non misurati/lattato (${r(eUA, 1)})`); if (has(eUA) && eUA > 2) alk.push(`altri cationi/anioni (residuo +${r(eUA, 1)})`);
+        let t = `Na–Cl ${r(eNaCl, 1)}` + (has(eAlb) ? ` · albumina ${eAlb > 0 ? '+' : ''}${r(eAlb, 1)} · anioni non misurati ${r(eUA, 1)}` : ' · albumina non inserita');
+        if (!has(eAlb)) {
+          const resid = sbe - eNaCl;
+          if (eNaCl < -2 && resid > 2) { alk.push(`componente alcalinizzante non identificata (+${r(resid, 1)}; probabile ipoalbuminemia)`); t += ` · residuo SBE − effetto Na–Cl = +${r(resid, 1)}`; }
+          if (eNaCl > 2 && resid < -2) { acid.push(`componente acidificante non identificata (${r(resid, 1)}; lattato/anioni non misurati?)`); t += ` · residuo ${r(resid, 1)}`; }
+        }
+        if (acid.length) sup('MA', 'Stewart'); if (alk.length) sup('MAlk', 'Stewart');
+        if (acid.length && alk.length) hidden = { acid, alk };
+        methods.push({ m: 'Stewart semplificato (Story)', found: [].concat(acid.map(x => 'Acidificante: ' + x), alk.map(x => 'Alcalinizzante: ' + x)), txt: t });
+      } else methods.push({ m: 'Stewart semplificato (Story)', found: null, txt: 'non calcolabile (inserire Na⁺ e Cl⁻; albumina per la partizione completa)' });
+      // Consenso
+      const comps = Object.keys(support).map(c => ({ code: c, label: NM[c], n: support[c].size, by: [...support[c]] })).sort((a, b) => b.n - a.n);
+      const avail = methods.filter(m => m.found !== null).length;
+      const strong = comps.filter(c => c.n >= 2), weak = comps.filter(c => c.n === 1);
+      let verdict, level;
+      if (strong.length >= 2) { verdict = 'Disturbo misto CONFERMATO: ' + strong.map(c => c.label).join(' + ') + ` (ognuna supportata da ≥ 2 metodi su ${avail})`; level = 'confermato'; }
+      else if (hidden && !['Boston', 'Copenhagen', 'Gap anionico'].some(m => (support.MA && support.MA.has(m)) || (support.MAlk && support.MAlk.has(m)))) { verdict = `Disturbo metabolico misto NASCOSTO (Stewart): componenti acidificanti (${hidden.acid.join('; ')}) bilanciate da componenti alcalinizzanti (${hidden.alk.join('; ')}): si annullano a vicenda (SBE ${r(sbe, 1)}) e restano invisibili alle formule tradizionali.`; level = 'nascosto'; }
+      else if (comps.length >= 2) { verdict = 'Disturbo misto POSSIBILE: ' + comps.map(c => `${c.label} [${c.by.join(', ')}]`).join(' + ') + ' — la componente aggiuntiva è sostenuta da un solo metodo: confermare con dati mancanti/EGA seriati.'; level = 'possibile'; }
+      else if (comps.length === 1) { verdict = `Disturbo semplice (${comps[0].label}): nessun metodo indica un secondo disturbo.`; level = 'semplice'; }
+      else { verdict = 'Nessun disturbo acido-base identificato dai metodi disponibili.'; level = 'nessuno'; }
+      if (hidden && level !== 'nascosto') verdict += ` Stewart: componenti metaboliche opposte (${hidden.acid.join('; ')} / ${hidden.alk.join('; ')}).`;
+      const missing = []; if (!has(I.na) || !has(I.cl)) missing.push('Na⁺/Cl⁻'); if (!has(I.alb)) missing.push('albumina'); if (!has(I.lac)) missing.push('lattati'); if (!has(I.prevPco2)) missing.push('EGA precedente');
+      out.mixed = { methods, comps, verdict, level, available: avail, reliability: avail >= 4 && has(I.alb) ? 'alta' : avail >= 3 ? 'moderata' : 'bassa', missing };
+    }
 
     // Azioni sintetiche prioritarie
     if (pH < 7.20) out.actions.push('Acidemia grave: ricerca e trattamento immediato della causa; valutare supporto ventilatorio/emodinamico; considerare NaHCO₃ se pH ≤ 7.20 con AKI KDIGO 2–3 (riduce il ricorso alla KRT, non la mortalità — BICARICU-2; SSC 2026) o perdita di bicarbonato; non di routine nell\'acidosi moderata dello shock (SODa-BIC 2026).');
@@ -708,7 +879,18 @@
     { id: 'C29', name: 'Campione venoso con EtCO₂: spazio morto non calcolato', input: { pH: 7.35, pco2: 46, hco3: 24.6, etco2: 35, sample: 'ven' },
       expect: { noVentGradient: true } },
     { id: 'C30', name: 'Acidosi respiratoria acuta con pH normale-basso: disturbo lieve', input: { pH: 7.36, pco2: 46, hco3: 25.2 },
-      expect: { primary: ['RA'], compRe: 'disturbo lieve' } }
+      expect: { primary: ['RA'], compRe: 'disturbo lieve' } },
+    // --- Regressione v1.4.0: diagnosi differenziale acuta/cronica e verifica multi-metodo del disturbo misto ---
+    { id: 'C31', name: 'Acuta su cronica (EGA precedente: BPCO con PaCO₂ 60 / HCO₃⁻ 32, 6 h prima)', input: { pH: 7.26, pco2: 75, hco3: 33.5, prevPco2: 60, prevHco3: 32, prevHours: 6 },
+      expect: { primary: ['RA'], acuity: 'acuta su cronica', chronMethod: 'EGA precedente' } },
+    { id: 'C32', name: 'Alcalosi metabolica post-ipercapnica (PaCO₂ 70 → 42 in 12 h)', input: { pH: 7.52, pco2: 42, hco3: 34, prevPco2: 70, prevHco3: 35, prevHours: 12 },
+      expect: { primary: ['MAlk'], baselineRe: 'post-ipercapnica', dxRe: 'post-ipercapnica' } },
+    { id: 'C33', name: 'Ipercapnia lieve + BPCO in anamnesi, senza EGA precedente', input: { pH: 7.37, pco2: 47.5, hco3: 25.7, be: 2.1, na: 154, k: 4, cl: 120.6, useK: true, hxCOPD: true },
+      expect: { primary: ['RA'], acuity: 'probabilmente cronica (anamnesi + indici)', scoreRel: 'bassa', mixedLevel: 'nascosto' } },
+    { id: 'C34', name: 'Acidosi respiratoria con ΔPaCO₂ ampia: concordanza degli indici affidabile', input: { pH: 7.30, pco2: 70, hco3: 33.7 },
+      expect: { primary: ['RA'], acuity: 'cronica', scoreRel: 'alta', mixedLevel: 'semplice' } },
+    { id: 'C35', name: 'Arresto cardiaco: misto confermato da più metodi', input: { pH: 7.09, pco2: 50, hco3: 15, na: 140, cl: 100, lac: 9 },
+      expect: { mixedLevel: 'confermato' } }
   ];
 
   function close(a, b, tol) { return a != null && Math.abs(a - b) <= tol; }
@@ -762,6 +944,11 @@
       if (e.fwd != null) push('Deficit di acqua libera ≈ ' + e.fwd + ' L', res.fwd && close(res.fwd.value, e.fwd, 0.1), res.fwd && res.fwd.value);
       if (e.noVentGradient) push('Gradiente PaCO₂–EtCO₂ non calcolato su campione venoso', !(res.vent && res.vent.gradient != null), res.vent && res.vent.gradient);
       if (e.compRe) push('Compenso ~ ' + e.compRe, new RegExp(e.compRe).test(res.compStatus || ''), res.compStatus);
+      if (e.chronMethod) push('Metodo cronicità = ' + e.chronMethod, res.chron && res.chron.method === e.chronMethod, res.chron && res.chron.method);
+      if (e.baselineRe) push('EGA precedente ~ ' + e.baselineRe, res.chron && res.chron.baseline && new RegExp(e.baselineRe).test(res.chron.baseline.verdict), res.chron && res.chron.baseline && res.chron.baseline.verdict);
+      if (e.dxRe) push('Diagnosi ~ ' + e.dxRe, new RegExp(e.dxRe).test(res.diagnosis), res.diagnosis);
+      if (e.scoreRel) push('Affidabilità indici = ' + e.scoreRel, res.chron && res.chron.score && res.chron.score.reliability === e.scoreRel, res.chron && res.chron.score && res.chron.score.reliability);
+      if (e.mixedLevel) push('Verifica disturbo misto = ' + e.mixedLevel, res.mixed && res.mixed.level === e.mixedLevel, res.mixed && res.mixed.level);
       if (e.stewartNaClNeg) push('Effetto Na–Cl negativo (Stewart)', res.stewart && res.stewart.beNaCl < 0, res.stewart && res.stewart.beNaCl);
       results.push({ id: c.id, name: c.name, pass: checks.every(x => x.pass), checks, diagnosis: res.diagnosis });
     }

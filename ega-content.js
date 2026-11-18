@@ -110,6 +110,13 @@ ${T(['Livello', 'Cause'], [
 <li>Ridurre spazio morto strumentale, controllare febbre e carico glucidico.</li>
 <li><b>ECCO₂R / ECMO</b> nei casi refrattari.</li>
 <li>NaHCO₃ non indicato (aumenta CO₂).</li></ul>
+<h4>Acuta, cronica o acuta su cronica?</h4>
+${T(['Strumento', 'Come si usa', 'Affidabilità'], [
+ ['EGA precedente', 'HCO₃⁻ atteso = HCO₃⁻ basale + 0,1·ΔPaCO₂ (acuta) oppure + 0,35·ΔPaCO₂ (cronica), con ΔPaCO₂ rispetto al basale. Se il basale è un\'ipercapnia cronica compensata e la nuova variazione è acuta → acuta su cronica', 'Alta (metodo di riferimento)'],
+ ['Durata nota', '< 24 h solo tamponamento; 24–72 h compenso renale in corso; > 3–5 giorni compenso completo', 'Alta se l\'orario è certo'],
+ ['Concordanza HCO₃⁻ / pH / SBE', 'Posizione del valore misurato tra atteso acuto e cronico per ciascun indice', 'Alta solo se ΔPaCO₂ ≳ 16 mmHg; bassa con ΔPaCO₂ piccola o con Cl⁻/albumina alterati'],
+ ['Anamnesi', 'BPCO, OHS/OSAS, malattie neuromuscolari, NIV/O₂ domiciliari', 'Moderata: rende probabile il compenso cronico preesistente']])}
+<div class="pearl"><b>Alcalosi metabolica post-ipercapnica:</b> se la PaCO₂ di un ipercapnico cronico viene ridotta rapidamente (VAM/NIV), l'HCO₃⁻ trattenuto resta elevato per giorni → alcalemia. Ridurre la ventilazione gradualmente, reintegrare Cl⁻ e K⁺, valutare acetazolamide.</div>
 <div class="pearl"><b>Cardiochirurgia:</b> l'ipercapnia aumenta le resistenze vascolari polmonari e può precipitare la disfunzione ventricolare destra (post-MVR, post-trapianto, LVAD): in questi pazienti target di PaCO₂ 35–40 mmHg e pH &gt; 7.35.</div>`
 },
 {
@@ -202,6 +209,8 @@ const FORMULAS = [
  ['Frazione di spazio morto alveolare', 'AVDSf = (PaCO₂ − EtCO₂)/PaCO₂', 'Normale < 0,15; gradiente PaCO₂–EtCO₂ 2–5 mmHg. Non equivale al VD/VT totale di Bohr-Enghoff (che richiede la PCO₂ espirata mista e include lo spazio morto anatomico)'],
  ['Cl⁻ corretto per Na⁺', 'Cl⁻ corr = Cl⁻ × 140 / Na⁺', 'Normale 98–106: separa l\'ipercloremia reale (SID ridotto, acidificante) da quella proporzionale al Na⁺ (Fencl 2000)'],
  ['Deficit di acqua libera', 'FWD (L) = peso × TBW × (Na⁺/140 − 1)', 'TBW: M 0,6 (≥ 65 anni 0,5) · F 0,5 (≥ 65 anni 0,45). Non include le perdite in corso. Cronica/durata ignota: ≤ 0,5 mmol/L/h (≈ 10–12 mmol/L/24 h)'],
+ ['Acuta su cronica (EGA precedente)', 'HCO₃⁻ atteso = HCO₃⁻ basale + 0.1·(PaCO₂ − PaCO₂ basale)', 'Acidosi; per riduzione acuta della PaCO₂: coefficiente 0.2. Fuori ± 2 → componente metabolica (es. alcalosi post-ipercapnica)'],
+ ['Copenhagen (SBE) per il disturbo misto', 'MA: PaCO₂ = 40 + SBE · MAlk: PaCO₂ = 40 + 0.6·SBE · resp. acuta: SBE ≈ 0 · resp. cronica: SBE ≈ 0.4·ΔPaCO₂', 'Usato nella verifica multi-metodo (tolleranza ± 5 mmHg / ± 2 mmol/L)'],
  ['Deficit di bicarbonato', '0.5·peso·(HCO₃⁻ target − HCO₃⁻) · 0.3·peso·|BE|', 'Somministrare ½ e rivalutare']
 ];
 
@@ -212,6 +221,7 @@ const ALGO = `
 <li><b>Disturbo primario</b> — quale variabile (PaCO₂ o HCO₃⁻) spiega la direzione del pH?</li>
 <li><b>Compenso</b> — classificazione: non compensato (variabile di compenso normale), parzialmente compensato (si muove ma pH alterato), completamente compensato (pH nel range). Poi <i>appropriatezza</i> con le formule: fuori range = secondo disturbo.</li>
 <li><b>Gap anionico</b> sempre, anche con pH normale; correggerlo per albumina.</li>
+<li><b>Disturbo misto: verifica multi-metodo</b> — Boston (formule), Copenhagen (SBE), gap anionico/Δ-Δ e Stewart semplificato: una componente rilevata da ≥ 2 metodi è confermata; componenti opposte rilevate solo con Stewart indicano un disturbo metabolico misto nascosto.</li>
 <li><b>Delta gap / Δ-Δ</b> — se AG elevato: cercare NAGMA o alcalosi metabolica associate.</li>
 <li><b>Elettroliti</b> — Na⁺, K⁺, Cl⁻ (e Cl⁻ corretto per Na⁺), Ca²⁺, Mg²⁺, fosfato, glicemia: l'app segnala i valori fuori range e il deficit di acqua libera.</li>
 <li><b>Approfondimenti</b> — gap osmolare (HAGMA non spiegata), UAG (NAGMA), Cl⁻ urinario (alcalosi metabolica), lattati, chetoni, Stewart.</li>
@@ -267,6 +277,7 @@ const REFS = [
  'Semler MW et al. SMART: Balanced crystalloids vs saline in critically ill adults. N Engl J Med 2018;378:829-39.',
  'Hernández G et al. ANDROMEDA-SHOCK. JAMA 2019;321:654-64.',
  'CLSI C46-A2. Blood gas and pH analysis and related measurements, 2009.',
+ 'Adrogué HJ, Madias NE. Secondary responses to altered acid–base status: the rules of engagement. J Am Soc Nephrol 2010;21:920-3 (PMID 20431042).',
  'Fencl V, Jabor A, Kazda A, Figge J. Diagnosis of metabolic acid–base disturbances in critically ill patients. Am J Respir Crit Care Med 2000;162:2246-51 (doi:10.1164/ajrccm.162.6.9904099).',
  'Adrogué HJ, Madias NE. Hypernatremia. N Engl J Med 2000;342:1493-9 (doi:10.1056/NEJM200005183422006).',
  'Chacon-Palma G, Teixeira JP, Litvinovich I et al. Relationship between rate of hypernatremia correction and outcomes in hospitalized patients. Kidney360 2025;6(8):1305-16 (doi:10.34067/KID.0000000785).',

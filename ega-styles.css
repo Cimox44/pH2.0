@@ -127,3 +127,6 @@ ol.algo li,.dis li{margin:5px 0}
 @media print{.tabs,.top,form,.toolbar,.actions{display:none!important}body{padding:0}}
 
 .chip.lyte{color:var(--warn);border-color:currentColor}
+.meter{position:relative;display:inline-block;width:60px;height:6px;border-radius:3px;background:var(--line);vertical-align:middle;margin-right:6px}
+.meter>span{position:absolute;top:-3px;width:4px;height:12px;margin-left:-2px;border-radius:2px;background:var(--ink)}
+.opts.hx{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px}
