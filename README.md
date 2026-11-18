@@ -1,18 +1,18 @@
 # EGA Acido-Base — PWA
 
-Calcolatore emogasanalitico per Terapia Intensiva: disturbo primario, compenso (non/parziale/completo + appropriatezza con formule), gap anionico corretto per albumina, delta gap e Δ/Δ, gap osmolare, gap anionico urinario, Cl⁻ urinario, Stewart/Fencl-Figge e partizione del BE (Story), ossigenazione (PAO₂, A-a, a/A, P/F, S/F secondo la Global Definition ARDS 2024 con distinzione intubato / non intubato, OI, CaO₂), perfusione (ΔPCO₂ veno-arterioso, ScvO₂), modalità campione venoso, ventilazione (PaCO₂–EtCO₂, frazione di spazio morto alveolare, PBW, ventilatory ratio, VE per PaCO₂ target), deficit di bicarbonato, mappa acido-base e disamina completa dei disturbi.
+Calcolatore emogasanalitico per Terapia Intensiva: disturbo primario, compenso (non/parziale/completo + appropriatezza con formule), gap anionico corretto per albumina, delta gap e Δ/Δ, gap osmolare, gap anionico urinario, Cl⁻ urinario, Stewart/Fencl-Figge e partizione del BE (Story), ossigenazione (PAO₂, A-a, a/A, P/F, S/F secondo la Global Definition ARDS 2024 con distinzione intubato / non intubato, OI, CaO₂), perfusione (ΔPCO₂ veno-arterioso, ScvO₂), modalità campione venoso, ventilazione (PaCO₂–EtCO₂, frazione di spazio morto alveolare, PBW, ventilatory ratio, VE per PaCO₂ target), elettroliti e glicemia con gravità, Cl⁻ corretto per Na⁺, deficit di acqua libera, deficit di bicarbonato, mappa acido-base e disamina completa dei disturbi.
 
 Funziona offline (service worker) ed è installabile su Android come app.
 
 ## Pubblicazione / aggiornamento (GitHub Pages, account Cimox44)
 - Repository: https://github.com/Cimox44/pH2.0 → app: https://cimox44.github.io/pH2.0/
 - Aggiornare: https://github.com/Cimox44/pH2.0/upload/main → trascinare i file modificati (sovrascrivono gli omonimi, nessuna sottocartella) → *Commit changes*.
-- Ogni rilascio: incrementare `VERSION` in `ega-engine.js`, `CACHE` in `ega-sw.js` **e** il suffisso `?v=` dei 4 file richiamati in `index.html` (stesso numero, es. `1.2.0` / `ega-v1.2.0` / `?v=1.2.0`): il service worker scarica i nuovi file e cancella la cache precedente. Sul telefono chiudere e riaprire l'app (eventualmente due volte).
+- Ogni rilascio: incrementare `VERSION` in `ega-engine.js`, `CACHE` in `ega-sw.js` **e** il suffisso `?v=` dei 4 file richiamati in `index.html` (stesso numero, es. `1.3.0` / `ega-v1.3.0` / `?v=1.3.0`): il service worker scarica i nuovi file e cancella la cache precedente. Sul telefono chiudere e riaprire l'app (eventualmente due volte).
 - Android (Chrome): menu ⋮ → **Installa app / Aggiungi a schermata Home**.
 - La versione installata è visibile nell'intestazione, in fondo a ogni pagina e nella scheda **Test**.
 
 ## Validazione
-- Tab **Test** nell'app: 27 casi di riferimento eseguiti dal vivo sul motore.
+- Tab **Test** nell'app: 30 casi di riferimento eseguiti dal vivo sul motore.
 - (Test da terminale opzionale: `node -e "console.log(require('./ega-engine.js').runValidation().every(r=>r.pass))"`)
 
 ## File (11, tutti nella radice, nessuna sottocartella)
@@ -30,6 +30,16 @@ Funziona offline (service worker) ed è installabile su Android come app.
 Il prefisso `ega-` evita che Android rinomini i file (es. `app-1.js`) quando nella cartella Download esistono file omonimi di altre app.
 
 ## Changelog
+- **v1.3.0 (revisione trimestrale, 18/11/2026)**
+  - *Compenso nei disturbi respiratori*: il compenso renale è riconosciuto anche dall'SBE (> +2 nell'acidosi, < −2 nell'alcalosi respiratoria) e non solo da HCO₃⁻ fuori 22–26. Con pH nel range e nessun compenso la classificazione è "disturbo lieve con pH nel range" invece di "non compensato" (prima: pH NORMALE + "non compensato", etichette contraddittorie). Etichetta "acuta/cronica non distinguibile" al posto di "indeterminabile (ΔPaCO₂ piccola)".
+  - *Nuova scheda Elettroliti e glicemia*: Na⁺, K⁺, Cl⁻, Ca²⁺ ionizzato, Mg²⁺, fosfato, glucosio confrontati con i range dell'adulto e graduati (lieve/moderata/grave), con chip nella diagnosi integrata e nel referto copiato. Prima ipernatriemia e ipercloremia non venivano segnalate.
+  - *Cl⁻ corretto per Na⁺* (Cl × 140/Na, Fencl 2000) ed effetto Na–Cl di Story calcolati anche senza albumina: distinguono l'ipercloremia reale (acidificante) da quella concentrazionale.
+  - *Deficit di acqua libera* (Adrogué-Madias) se Na⁺ > 145 e peso inserito, con velocità di correzione e nota sulle evidenze discordanti (Kidney360 2025, Cureus 2025); azione prioritaria per Na⁺ ≥ 150 o < 125.
+  - *Gap anionico "ai limiti inferiori"* (senza albumina) con avviso: sospetta ipoalbuminemia.
+  - *Campione venoso*: gradiente PaCO₂–EtCO₂, frazione di spazio morto, ventilatory ratio e VE target non più calcolati dalla PvCO₂ (prima indicavano un falso aumento dello spazio morto); KPI etichettato "PvCO₂".
+  - *Interfaccia*: il caricamento dei casi esempio spunta "Includi K⁺" quando previsto (C18).
+  - *Contenuti*: nuova riga in "Disturbi misti" (acidosi ipercloremica mascherata da alcalosi ipoalbuminemica), perla su ipernatriemia/ipercloremia, formule Cl⁻ corretto e deficit di acqua libera, 5 nuovi riferimenti con DOI.
+  - *Validazione*: 3 nuovi casi di regressione (C28 EGA reale ventilato con ipernatriemia, C29 venoso con EtCO₂, C30 ipercapnia lieve a pH normale) → 30 casi, 141 verifiche.
 - **v1.2.0 (revisione annuale, 28/10/2026)**
   - *Validazione input*: PaCO₂ < 10 mmHg bloccata con suggerimento "valore in kPa?" (prima 5,3 inserito come mmHg produceva un falso disturbo misto); avviso per PaCO₂ 10–15; valori negativi o non plausibili dei campi facoltativi (PaO₂, SpO₂, Na⁺, Cl⁻, albumina, lattati, peso, ecc.) esclusi dal calcolo con avviso; albumina > 7 g/dL riconosciuta come probabile valore in g/L.
   - *Ossigenazione*: Global Definition ARDS (Matthay, AJRCCM 2024) — nuovo campo "Supporto respiratorio": gradazione lieve/moderata/grave solo per l'intubato (avviso se PEEP < 5); per HFNO ≥ 30 L/min / NIV-CPAP solo criterio P/F ≤ 300 o S/F ≤ 315 senza gradi. Etichette 2023 → 2024.

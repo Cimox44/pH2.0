@@ -1,5 +1,5 @@
 /* Service worker — cache offline (aggiornare CACHE a ogni rilascio: deve coincidere con VERSION in ega-engine.js) */
-const CACHE = 'ega-v1.2.0';
+const CACHE = 'ega-v1.3.0';
 const ASSETS = ['./', 'index.html', 'ega-styles.css', 'ega-engine.js', 'ega-content.js', 'ega-app.js', 'ega-manifest.json',
   'ega-icon-192.png', 'ega-icon-512.png', 'ega-maskable-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' }))))); self.skipWaiting(); });

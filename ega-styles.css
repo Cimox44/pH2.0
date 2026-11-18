@@ -125,3 +125,5 @@ ol.algo li,.dis li{margin:5px 0}
 .tabs button.active{color:var(--acc)}
 .toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:var(--acc2);color:#fff;padding:9px 16px;border-radius:99px;font-size:13px;z-index:9;max-width:calc(100vw - 32px);text-align:center;pointer-events:none}
 @media print{.tabs,.top,form,.toolbar,.actions{display:none!important}body{padding:0}}
+
+.chip.lyte{color:var(--warn);border-color:currentColor}

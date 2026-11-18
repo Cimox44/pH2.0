@@ -89,6 +89,7 @@ sel.addEventListener('change', () => {
   form.reset(); form.uP.value = 'mmHg'; form.uA.value = 'gdl'; form.uG.value = 'mg'; form.uU.value = 'urea';
   Object.entries(c.input).forEach(([k, v]) => {
     if (k === 'chronicity') form.chronicity.value = v;
+    else if (k === 'useK') form.useK.checked = !!v;
     else if (form[k]) form[k].value = String(v);
   });
   updateUnitLabels(); compute(); sel.value = '';
@@ -157,6 +158,7 @@ function compute() {
   h += `<div class="chips"><span class="chip ${cls}">${R.phStatus.toUpperCase()}${R.phSeverity !== 'normale' ? ' · ' + R.phSeverity : ''}</span>`;
   R.disorders.forEach(d => h += `<span class="chip ${/^(MA|RA)$/.test(d.code) ? 'acid' : 'alk'}">${esc(d.label)} — ${esc(d.detail)}</span>`);
   if (R.compStatus) h += `<span class="chip">Compenso: ${esc(R.compStatus)}</span>`;
+  (R.lyteSummary || []).forEach(t => h += `<span class="chip lyte">${esc(t)}</span>`);
   h += `</div></div>`;
   R.errors.forEach(e => h += `<div class="alert err">${esc(e)}</div>`);
   R.actions.forEach(e => h += `<div class="alert act">⚠ ${esc(e)}</div>`);
@@ -166,7 +168,7 @@ function compute() {
   const v = R.v;
   h += `<div class="kpis">`;
   h += kpi('pH', fmt(I.pH, 2), '[H⁺] ' + fmt(v.H, 1) + ' nmol/L', I.pH < 7.35 ? 'hi' : I.pH > 7.45 ? 'lo' : '');
-  h += kpi('PaCO₂', fmt(I.pco2, 1), 'mmHg' + (form.uP.value === 'kPa' ? ' (da kPa)' : ''), rng(I.pco2, 35, 45) === 'hi' ? 'hi' : rng(I.pco2, 35, 45) === 'lo' ? 'lo' : '');
+  h += kpi(I.sample === 'ven' ? 'PvCO₂' : 'PaCO₂', fmt(I.pco2, 1), 'mmHg' + (form.uP.value === 'kPa' ? ' (da kPa)' : ''), rng(I.pco2, 35, 45) === 'hi' ? 'hi' : rng(I.pco2, 35, 45) === 'lo' ? 'lo' : '');
   h += kpi('HCO₃⁻', fmt(v.hco3, 1), v.hco3Source === 'misurato/refertato' ? 'calc. H-H ' + fmt(v.hco3Calc, 1) : 'calcolato H-H', v.hco3 < 22 ? 'hi' : v.hco3 > 26 ? 'lo' : '');
   h += kpi('SBE', (v.sbe > 0 ? '+' : '') + fmt(v.sbe, 1), v.sbeSource, v.sbe < -2 ? 'hi' : v.sbe > 2 ? 'lo' : '');
   if (R.ag) h += kpi(R.ag.agc != null ? 'AG corretto' : 'Gap anionico', fmt(R.ag.use, 1), (R.ag.agc != null ? 'AG grezzo ' + fmt(R.ag.ag, 1) + ' · ' : '') + R.ag.status, R.ag.status === 'elevato' ? 'hi' : '');
@@ -223,6 +225,17 @@ function compute() {
   } else h += `<p class="mut">Inserire Na⁺ e Cl⁻ (e albumina) per gap anionico, delta gap e classificazione dell'acidosi metabolica.</p>`;
   R.notes.forEach(n => h += `<div class="alert note">${esc(n)}</div>`);
   h += `</div>`;
+
+  // Elettroliti
+  if (R.lytes) {
+    const rows = R.lytes.map(l => [l.label, `<span class="num"><b>${fmt(l.value, l.code === 'ica' || l.code === 'mg' || l.code === 'phos' ? 2 : (l.code === 'glu' ? 0 : 1))}</b></span> <span class="mut">${l.unit}</span>`,
+      `<span class="${l.status === 'normale' ? 'v-ok' : 'v-bad'}">${esc(l.status)}${l.sev ? ' ' + esc(l.sev) : ''}</span><br><span class="mut">rif. ${l.ref}</span>`]);
+    h += `<div class="card"><h3><span class="n">E</span>Elettroliti e glicemia</h3>${table(['Parametro', 'Valore', 'Stato'], rows)}`;
+    R.lytes.filter(l => l.txt && l.status !== 'normale' || l.code === 'cl' && l.txt).forEach(l => h += `<p class="mut"><b>${esc(l.label)}:</b> ${esc(l.txt)}</p>`);
+    if (R.fwd) h += table(['Deficit di acqua libera', 'Valore'], [['Peso × ' + String(R.fwd.frac).replace('.', ',') + ' × (Na⁺/140 − 1)' + (R.fwd.sexKnown ? '' : ' <span class="mut">(sesso non indicato: frazione 0,5)</span>'), `<b>${fmt(R.fwd.value, 1)} L</b>`]]) + `<p class="mut">${esc(R.fwd.note)}</p>`;
+    else if (R.lytes.some(l => l.code === 'na' && l.status === 'Ipernatriemia')) h += `<p class="mut">Inserire peso (e sesso/età) in "Paziente e ventilazione" per stimare il deficit di acqua libera.</p>`;
+    h += `<p class="mut">Range indicativi dell'adulto: verificare quelli del proprio laboratorio.</p></div>`;
+  }
 
   // Step 5 approfondimenti
   const extra = [];
@@ -324,6 +337,7 @@ function copyReport() {
   L.push(`pH ${fmt(I.pH, 2)} | PaCO2 ${fmt(I.pco2, 1)} mmHg | HCO3 ${fmt(R.v.hco3, 1)} | SBE ${fmt(R.v.sbe, 1)}` + (I.po2 != null ? ` | PaO2 ${fmt(I.po2, 0)}` : '') + (R.oxy && R.oxy.pf != null ? ` | P/F ${fmt(R.oxy.pf, 0)}` : ''));
   if (R.ag) L.push(`AG ${fmt(R.ag.ag, 1)}${R.ag.agc != null ? ' (corr. alb. ' + fmt(R.ag.agc, 1) + ')' : ''}${R.delta && R.delta.ratio != null ? ' | Δ/Δ ' + fmt(R.delta.ratio, 2) : ''}`);
   if (R.lac) L.push(`Lattati ${fmt(R.lac.value, 1)} mmol/L`);
+  if (R.lyteSummary && R.lyteSummary.length) L.push('Elettroliti: ' + R.lyteSummary.join('; ') + (R.clCorr != null ? ` | Cl corretto ${fmt(R.clCorr, 1)}` : '') + (R.fwd ? ` | deficit acqua libera ${fmt(R.fwd.value, 1)} L` : ''));
   L.push('Diagnosi: ' + R.diagnosis);
   R.compChecks.forEach(c => L.push('Compenso: ' + c.text));
   if (R.delta && R.delta.interp) L.push('Δ/Δ: ' + R.delta.interp);
@@ -349,12 +363,13 @@ $('#compTable').innerHTML = C.T(['Disturbo primario', 'Variazione primaria', 'Co
   ['Alcalosi respiratoria acuta', '↓ PaCO₂', '−2 HCO₃⁻ per −10 mmHg', 'minuti', 'HCO₃⁻ ~18'],
   ['Alcalosi respiratoria cronica', '↓ PaCO₂', '−4/−5 HCO₃⁻ per −10 mmHg', '2–3 giorni', 'HCO₃⁻ ~12–15']
 ]) + C.T(['Classificazione del compenso', 'pH', 'Variabile di compenso'], [
+  ['Disturbo lieve con pH nel range', '7,35–7,45', 'nel range (variazione primaria piccola: compenso atteso minimo)'],
   ['Non compensato', 'alterato', 'nel range normale'],
   ['Parzialmente compensato', 'alterato', 'alterata nel verso del compenso'],
   ['Completamente compensato', '7,35–7,45', 'alterata nel verso del compenso (verificare se misto!)'],
   ['Compenso atteso minimo', 'lievemente alterato', 'disturbo metabolico lieve: la formula prevede una PaCO₂ quasi normale'],
   ['Non appropriato → disturbo misto', 'variabile', 'fuori dal range atteso dalle formule o alterata nel verso opposto']
-]) + `<p class="mut">Criteri usati dall'app: nei disturbi respiratori il compenso renale è considerato presente se HCO₃⁻ esce dal range 22–26; nei disturbi metabolici il compenso respiratorio (che inizia in minuti) è considerato avviato se la PaCO₂ si sposta di ≥ 3 mmHg da 40 nel verso atteso. L'appropriatezza è sempre giudicata con le formule.</p>`;
+]) + `<p class="mut">Criteri usati dall'app: nei disturbi respiratori il compenso renale è considerato presente se HCO₃⁻ esce dal range 22–26 oppure se l'SBE supera ±2 mmol/L nel verso del compenso (criterio Copenhagen); nei disturbi metabolici il compenso respiratorio (che inizia in minuti) è considerato avviato se la PaCO₂ si sposta di ≥ 3 mmHg da 40 nel verso atteso. L'appropriatezza è sempre giudicata con le formule.</p>`;
 $('#algo').innerHTML = C.ALGO;
 $('#mapStatic').innerHTML = `<div class="card map">${acidBaseMap(null)}<p class="mut">① Acidosi metabolica · ② Alcalosi metabolica · ③ Acidosi resp. acuta · ④ Acidosi resp. cronica · ⑤ Alcalosi resp. acuta · ⑥ Alcalosi resp. cronica · riquadro verde: normalità.</p></div>`;
 $('#preanal').innerHTML = C.PREANALYTIC;

@@ -1,6 +1,6 @@
 /*!
  * EGA Analyzer — motore di calcolo acido-base / ventilatorio / ossigenazione
- * Versione 1.2.0 (2026-10, revisione annuale) — Cimox44
+ * Versione 1.3.0 (2026-11, revisione trimestrale) — Cimox44
  * Modulo UMD: usabile nel browser (window.EGA) e in Node (require).
  * Unità interne: mmHg, mmol/L (= mEq/L per ioni monovalenti), albumina g/dL,
  * glucosio mg/dL, BUN mg/dL, Hb g/dL, FiO2 frazione (0.21–1.0).
@@ -11,8 +11,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '1.2.0';
-  const CONTENT_DATE = 'ottobre 2026';
+  const VERSION = '1.3.0';
+  const CONTENT_DATE = 'novembre 2026';
 
   // ---- Valori di riferimento (adulto, sangue arterioso, 37 °C) ----
   const REF = {
@@ -75,6 +75,10 @@
     albCharge: (albGl, pH) => albGl * (0.123 * pH - 0.631),
     phosCharge: (phos, pH) => phos * (0.309 * pH - 0.469),
     hco3Deficit: (wt, target, hco3) => 0.5 * wt * (target - hco3),
+    // Elettroliti
+    clCorr: (cl, na) => cl * 140 / na,                                   // Cl⁻ corretto per Na (Fencl)
+    tbwFrac: (sex, age) => { const old = has(age) && age >= 65; return sex === 'F' ? (old ? 0.45 : 0.5) : sex === 'M' ? (old ? 0.5 : 0.6) : 0.5; },
+    freeWaterDeficit: (wt, frac, na) => wt * frac * (na / 140 - 1),      // Adrogué-Madias NEJM 2000
     beDeficit: (wt, sbe) => 0.3 * wt * Math.abs(sbe)
   };
 
@@ -226,10 +230,12 @@
       // si è spostata di ≥ 3 mmHg da 40 nel verso del compenso (anche se ancora nel range 35–45).
       if (p === 'MA') { moved = pco2 <= REF.PaCO2n - 3; opposite = pco2Hi; }
       if (p === 'MAlk') { moved = pco2 >= REF.PaCO2n + 3; opposite = pco2Lo; }
-      if (p === 'RA') { moved = hco3Hi; opposite = hco3Lo; }
-      if (p === 'RAlk') { moved = hco3Lo; opposite = hco3Hi; }
+      // Respiratori: compenso renale presente se HCO₃⁻ esce da 22–26 OPPURE se l'SBE si sposta oltre ±2
+      // nel verso del compenso (criterio Copenhagen: l'SBE è indipendente dalla PaCO₂).
+      if (p === 'RA') { moved = hco3Hi || sbe > REF.SBE[1]; opposite = hco3Lo; }
+      if (p === 'RAlk') { moved = hco3Lo || sbe < REF.SBE[0]; opposite = hco3Hi; }
       if (opposite) compStatus = 'assente (variabile di compenso alterata in senso opposto → disturbo misto)';
-      else if (!moved) compStatus = 'non compensato';
+      else if (!moved) compStatus = (phStatus === 'normale') ? 'disturbo lieve con pH nel range (compenso atteso minimo)' : 'non compensato';
       else if (phStatus === 'normale') compStatus = 'completamente compensato';
       else compStatus = 'parzialmente compensato';
 
@@ -283,7 +289,7 @@
           if (inA && inC) {
             const dA = Math.abs(hco3 - acute), dC = Math.abs(hco3 - chronic);
             c.verdict = 'appropriato';
-            if (Math.abs(dA - dC) < 1) { respAcuity = 'indeterminabile (ΔPaCO₂ piccola)'; c.text = 'HCO₃⁻ compatibile sia con forma acuta sia cronica (ΔPaCO₂ modesta): decide la clinica.'; }
+            if (Math.abs(dA - dC) < 1) { respAcuity = 'acuta/cronica non distinguibile'; c.text = 'HCO₃⁻ compatibile sia con forma acuta sia cronica (ΔPaCO₂ modesta): decide la clinica.'; }
             else if (dC < dA) { respAcuity = 'cronica'; c.text = 'HCO₃⁻ più vicino all\'atteso CRONICO (range sovrapposti: confermare con anamnesi).'; }
             else { respAcuity = 'acuta'; c.text = 'HCO₃⁻ più vicino all\'atteso ACUTO (range sovrapposti: confermare con anamnesi).'; }
           }
@@ -296,6 +302,7 @@
         if (p === 'RA' && hco3 > 45) c.text += ' Nota: compenso renale massimo ~45 mmol/L; valori superiori indicano alcalosi metabolica associata.';
         if (p === 'RAlk' && hco3 < 12) c.text += ' Nota: compenso renale minimo ~12–15 mmol/L.';
         c.alt = `pH atteso: acuta ${c.pHacute}, cronica ${c.pHchronic} (regole 0.008 / 0.003). Copenhagen: acuta → SBE invariato (≈0); cronica → SBE ≈ 0.4·ΔPaCO₂ = ${r(0.4 * (pco2 - 40), 1)} mmol/L (attuale ${r(sbe, 1)}).`;
+        if (!hco3Hi && !hco3Lo && ((p === 'RA' && sbe > REF.SBE[1]) || (p === 'RAlk' && sbe < REF.SBE[0]))) c.text += ` HCO₃⁻ ancora nel range 22–26 ma SBE ${r(sbe, 1)} mmol/L già spostato nel verso del compenso: compenso renale avviato (forma subacuta/cronica) oppure lieve componente metabolica associata.`;
         out.compChecks.push(c); if (c.extra) extra.push(c.extra);
       }
     } else if (primary.length === 2) {
@@ -327,8 +334,10 @@
       agInfo = { ag: r(ag, 1), agc: r(agc, 1), use: r(agUse, 1), normal: agN, upper: agHi, withK: kUsed };
       agInfo.status = agUse > agHi ? 'elevato' : (agUse < agN - 6 ? 'basso' : 'normale');
       if (agUse > agN && agUse <= agHi) agInfo.status = 'ai limiti superiori';
+      if (agInfo.status === 'normale' && !has(agc) && agUse < agN - REF.AGsd) agInfo.status = 'ai limiti inferiori';
       if (has(agc) && ag <= agHi && agc > agHi) { agInfo.masked = true; W(`Gap anionico apparentemente normale (${r(ag, 1)}) ma corretto per albumina = ${r(agc, 1)} mmol/L: HAGMA mascherata dall'ipoalbuminemia.`); }
       if (agInfo.status === 'basso') W((has(agc) ? 'Gap anionico basso anche dopo correzione per albumina' : 'Gap anionico basso') + ': considerare ' + (has(agc) ? '' : 'ipoalbuminemia, ') + 'paraproteinemia (mieloma IgG), ipercalcemia/ipermagnesiemia, intossicazione da litio o bromuri, errore di laboratorio (ipercloremia spuria).');
+      if (!has(agc) && agInfo.status === 'ai limiti inferiori') W(`Gap anionico ${r(ag, 1)} sotto il limite inferiore (${agN - REF.AGsd}): nel paziente critico la causa più frequente è l'ipoalbuminemia → inserire l'albumina (corregge l'AG e attiva l'analisi di Stewart).`);
       if (!has(I.alb)) out.notes.push('Albumina non inserita: AG non corretto. Nel paziente critico l\'ipoalbuminemia è la regola e può mascherare una HAGMA (−2.5 mmol/L di AG per ogni g/dL di albumina persa).');
       out.ag = agInfo;
     }
@@ -398,6 +407,47 @@
     }
     if (has(I.lac)) {
       out.lac = { value: I.lac, interp: I.lac >= 4 ? 'Iperlattatemia grave (≥4 mmol/L): ipoperfusione/shock (tipo A) o cause tipo B; prognosticamente sfavorevole.' : I.lac > 2 ? 'Iperlattatemia (>2 mmol/L).' : 'Lattati nella norma.' };
+    }
+
+    // --- Elettroliti: range, gravità, Cl⁻ corretto, deficit di acqua libera ---
+    const ly = [];
+    const L = (code, label, val, unit, ref, status, sev, txt) => ly.push({ code, label, value: r(val, code === 'ica' || code === 'mg' || code === 'phos' ? 2 : 1), unit, ref, status, sev, txt: txt || '' });
+    if (has(I.na)) {
+      const na = I.na;
+      if (na > 145) L('na', 'Na⁺', na, 'mmol/L', '135–145', 'Ipernatriemia', na >= 160 ? 'grave' : na >= 150 ? 'moderata' : 'lieve',
+        'Deficit di acqua libera (perdite insensibili/renali, diabete insipido, diuretici osmotici, apporto ipertonico: NaHCO₃, NaCl 3%, antibiotici sodici). Valutare volemia, diuresi e osmolalità urinaria.');
+      else if (na < 135) L('na', 'Na⁺', na, 'mmol/L', '135–145', 'Iponatriemia', na < 125 ? 'grave' : na < 130 ? 'moderata' : 'lieve',
+        'Valutare osmolalità plasmatica, volemia, Na⁺ e osmolalità urinarie; correzione ≤ 8–10 mmol/L/24 h (rischio di demielinizzazione osmotica).');
+      else L('na', 'Na⁺', na, 'mmol/L', '135–145', 'normale', '', '');
+    }
+    if (has(I.k)) {
+      const k = I.k;
+      if (k > 5.0) L('k', 'K⁺', k, 'mmol/L', '3,5–5,0', 'Iperkaliemia', k >= 6.5 ? 'grave' : k >= 6.0 ? 'moderata' : 'lieve', 'Escludere emolisi; ECG. L\'acidemia sposta K⁺ fuori dalle cellule.');
+      else if (k < 3.5) L('k', 'K⁺', k, 'mmol/L', '3,5–5,0', 'Ipokaliemia', k < 2.5 ? 'grave' : k < 3.0 ? 'moderata' : 'lieve', 'Rischio aritmico (soprattutto post-cardiochirurgia: target spesso 4,0–5,0). Mantiene l\'alcalosi metabolica; correggere Mg²⁺.');
+      else L('k', 'K⁺', k, 'mmol/L', '3,5–5,0', 'normale', '', '');
+    }
+    if (has(I.cl)) {
+      const cl = I.cl;
+      const st = cl > 106 ? 'Ipercloremia' : cl < 98 ? 'Ipocloremia' : 'normale';
+      let txt = '';
+      if (has(I.na)) {
+        const cc = F.clCorr(cl, I.na);
+        out.clCorr = r(cc, 1);
+        txt = `Cl⁻ corretto per Na⁺ (Cl × 140/Na) = ${r(cc, 1)} mmol/L → ` + (cc > 106 ? 'ipercloremia REALE (eccesso di Cl⁻ rispetto al Na⁺: effetto acidificante, SID ridotto).' : cc < 98 ? 'ipocloremia REALE (difetto di Cl⁻ rispetto al Na⁺: effetto alcalinizzante).' : (st !== 'normale' ? 'variazione proporzionale al Na⁺ (da concentrazione/diluizione dell\'acqua libera), non un disturbo primario del Cl⁻.' : 'nel range.'));
+        txt += ` Na⁺ − Cl⁻ = ${r(I.na - cl, 1)} (effetto Na–Cl sul BE secondo Story = ${r(I.na - cl - 38, 1)} mmol/L).`;
+      }
+      L('cl', 'Cl⁻', cl, 'mmol/L', '98–106', st, st === 'normale' ? '' : (cl > 115 || cl < 90 ? 'marcata' : 'lieve'), txt);
+    }
+    if (has(I.ica)) { const c = I.ica; L('ica', 'Ca²⁺ ionizzato', c, 'mmol/L', '1,15–1,30', c < 1.15 ? 'Ipocalcemia' : c > 1.30 ? 'Ipercalcemia' : 'normale', c < 0.9 ? 'grave' : c > 1.6 ? 'grave' : '', c < 1.15 ? 'Frequente dopo CEC, trasfusioni (citrato), alcalemia; target post-cardiochirurgia in genere ≥ 1,1.' : ''); }
+    if (has(I.mg)) { const m = I.mg; L('mg', 'Mg²⁺', m, 'mmol/L', '0,70–1,00 (totale)', m < 0.7 ? 'Ipomagnesiemia' : m > 1.0 ? 'Ipermagnesiemia' : 'normale', m < 0.5 ? 'grave' : '', m < 0.7 ? 'Aritmogena (FA/TdP post-cardiochirurgia); mantiene l\'ipokaliemia.' : ''); }
+    if (has(I.phos)) { const ph = I.phos; L('phos', 'Fosfato', ph, 'mmol/L', '0,80–1,45', ph < 0.8 ? 'Ipofosfatemia' : ph > 1.45 ? 'Iperfosfatemia' : 'normale', ph < 0.32 ? 'grave' : '', ph < 0.8 ? 'Debolezza respiratoria, difficoltà di svezzamento; refeeding.' : ph > 1.45 ? 'IRA/IRC, lisi cellulare: contribuisce all\'AG/SIG.' : ''); }
+    if (has(I.glu)) { const g = I.glu; L('glu', 'Glucosio', g, 'mg/dL', '70–180 (ICU)', g < 70 ? 'Ipoglicemia' : g > 180 ? 'Iperglicemia' : 'normale', g < 54 ? 'grave' : g > 250 ? 'marcata' : '', g > 180 ? 'Target ICU 140–180 mg/dL (ADA). Se > 250 o paziente in SGLT2-i con HAGMA: dosare β-OHB.' : g < 70 ? 'Trattare subito (destrosio).' : ''); }
+    if (ly.length) { out.lytes = ly; out.lyteSummary = ly.filter(l => l.status !== 'normale').map(l => l.status + (l.sev ? ' ' + l.sev : '') + ` (${l.label} ${String(l.value).replace('.', ',')})`); }
+    if (has(I.na) && I.na > 145 && has(I.weight)) {
+      const frac = F.tbwFrac(I.sex, I.age);
+      const fwd = F.freeWaterDeficit(I.weight, frac, I.na);
+      out.fwd = { value: r(fwd, 1), frac, sexKnown: I.sex === 'M' || I.sex === 'F',
+        note: 'Deficit stimato (non include le perdite in corso). Ipernatriemia cronica o di durata non nota: riduzione del Na⁺ ≤ 0,5 mmol/L/h (≈ 10–12 mmol/L/24 h) con controlli ogni 4–6 h; forme acute (< 48 h) possono essere corrette più rapidamente. Le evidenze osservazionali recenti sulla velocità di correzione sono discordanti (Chacon-Palma, Kidney360 2025; Lee, Cureus 2025). Se ipovolemia/shock: prima ripristinare la volemia con cristalloidi.' };
     }
 
     // --- Stewart / Fencl-Figge e partizione del BE (Story) ---
@@ -485,19 +535,20 @@
 
     // --- Ventilazione ---
     const vent = {};
-    if (has(I.etco2)) {
+    if (venous && (has(I.etco2) || has(I.ve))) out.notes.push('Campione venoso: gradiente PaCO₂–EtCO₂, frazione di spazio morto, ventilatory ratio e VE per PaCO₂ target non calcolati (richiedono la PaCO₂ arteriosa; la PvCO₂ li sovrastimerebbe).');
+    if (has(I.etco2) && !venous) {
       vent.gradient = r(pco2 - I.etco2, 1);
       vent.avdsf = r((pco2 - I.etco2) / pco2, 2);   // frazione di spazio morto alveolare (non VD/VT totale)
       vent.interp = (pco2 - I.etco2) > 5 ? 'Gradiente PaCO₂–EtCO₂ aumentato (> 5 mmHg): ↑ spazio morto alveolare (bassa portata, embolia polmonare, iperdistensione/PEEP eccessiva, ARDS, ipovolemia).' : 'Gradiente PaCO₂–EtCO₂ nella norma (2–5 mmHg).';
     }
-    if (has(I.ve) && has(I.pco2Target) && I.pco2Target > 0) {
+    if (has(I.ve) && has(I.pco2Target) && I.pco2Target > 0 && !venous) {
       vent.veTarget = r(F.veTarget(I.ve, pco2, I.pco2Target), 1);
       vent.veNote = 'Assume VCO₂ e spazio morto costanti; con VD/VT elevato servono aumenti maggiori: modificare preferibilmente la FR (mantenendo VT 6 mL/kg PBW) e ricontrollare EGA dopo 20–30 min.';
     }
     if (has(I.height) && (I.sex === 'M' || I.sex === 'F')) {
       vent.pbw = r(F.pbw(I.sex, I.height), 1);
       vent.vt6 = r(vent.pbw * 6, 0); vent.vt8 = r(vent.pbw * 8, 0);
-      if (has(I.ve)) {
+      if (has(I.ve) && !venous) {
         vent.vr = r(F.ventRatio(I.ve, pco2, F.pbw(I.sex, I.height)), 2);
         vent.vrInterp = vent.vr > 2 ? 'Ventilatory ratio > 2: elevato spazio morto, associato a mortalità aumentata nell\'ARDS.' : vent.vr > 1.3 ? 'Ventilatory ratio moderatamente aumentato.' : 'Ventilatory ratio vicino a 1 (normale).';
       }
@@ -565,7 +616,7 @@
     // Diagnosi integrata
     if (out.disorders.length === 0) {
       out.diagnosis = 'Equilibrio acido-base nella norma.';
-      if (agInfo && agInfo.status !== 'normale' && agInfo.status !== 'ai limiti superiori') out.diagnosis += ' (Verificare gap anionico.)';
+      if (agInfo && !/normale|ai limiti/.test(agInfo.status)) out.diagnosis += ' (Verificare gap anionico.)';
     } else {
       const parts = out.disorders.map((d, i) => d.label + (i === 0 && primary.length === 1 && compStatus && !/disturbo misto/.test(compStatus) ? ` — ${compStatus}` : ''));
       out.diagnosis = parts.join(' + ');
@@ -584,6 +635,7 @@
     if (pH > 7.55) out.actions.push('Alcalemia grave: rischio di aritmie, convulsioni, ↓Ca²⁺ ionizzato, ↓K⁺; correggere causa ed elettroliti, ridurre ventilazione minuto se iatrogena.');
     if (pco2 > 60 && pH < 7.25) out.actions.push('Ipercapnia con acidemia: valutare NIV/ventilazione invasiva o ottimizzazione dei parametri (↑FR/VT entro i limiti protettivi).');
     if (has(I.k) && I.k < 3.0) out.actions.push('Ipokaliemia significativa: correggere prima/durante la correzione dell\'acidosi (l\'alcalinizzazione abbassa ulteriormente il K⁺).');
+    if (has(I.na) && (I.na >= 150 || I.na < 125)) out.actions.push(I.na >= 150 ? `Ipernatriemia ${I.na >= 160 ? 'grave' : 'moderata'} (Na⁺ ${I.na}): stimare il deficit di acqua libera, ridurre gli apporti di sodio (NaHCO₃, NaCl), correggere con acqua libera/soluzioni ipotoniche a velocità controllata (≤ 0,5 mmol/L/h se cronica) e ricontrollare il Na⁺ ogni 4–6 h.` : `Iponatriemia grave (Na⁺ ${I.na}): valutare sintomi neurologici (NaCl 3% se gravi); correzione ≤ 8–10 mmol/L/24 h.`);
     if (has(I.k) && I.k > 6.0) out.actions.push('Iperkaliemia: protocollo di trattamento urgente (calcio, insulina-glucosio, β2-agonisti, NaHCO₃ se acidosi, dialisi).');
 
     out.ok = true;
@@ -649,7 +701,14 @@
     { id: 'C26', name: 'Campione venoso: ossigenazione da PvO₂ non calcolata', input: { pH: 7.30, pco2: 50, hco3: 24.2, po2: 40, fio2: 0.4, sample: 'ven' },
       expect: { noOxy: true, warnRe: 'VENOSO' } },
     { id: 'C27', name: 'Post-CEC: ΔPCO₂ cv-a 9 mmHg con ScvO₂ 72%', input: { pH: 7.34, pco2: 38, hco3: 20.1, lac: 3.1, pcvco2: 47, scvo2: 72 },
-      expect: { gap: 9, gapRe: '> 6' } }
+      expect: { gap: 9, gapRe: '> 6' } },
+    // --- Regressione revisione v1.3.0 ---
+    { id: 'C28', name: 'Ipercapnia lieve con pH normale, SBE +2,1, ipernatriemia e ipercloremia (EGA reale, ventilato)', input: { pH: 7.37, pco2: 47.5, hco3: 25.7, be: 2.1, na: 154, k: 4, cl: 120.6, useK: true, lac: 0.5, po2: 77, fio2: 0.6, spo2: 95, sao2: 95, hb: 11.3, glu: 137.5, peep: 5, oxSupport: 'imv', weight: 70, sex: 'M', age: 70 },
+      expect: { primary: ['RA'], comp: 'completamente compensato', disorders: ['RA'], pf: 128, pfClassRe: '^Moderata', lyte: { na: 'Ipernatriemia', cl: 'Ipercloremia' }, clCorrMin: 106, fwd: 3.5, warnRe: 'albumina' } },
+    { id: 'C29', name: 'Campione venoso con EtCO₂: spazio morto non calcolato', input: { pH: 7.35, pco2: 46, hco3: 24.6, etco2: 35, sample: 'ven' },
+      expect: { noVentGradient: true } },
+    { id: 'C30', name: 'Acidosi respiratoria acuta con pH normale-basso: disturbo lieve', input: { pH: 7.36, pco2: 46, hco3: 25.2 },
+      expect: { primary: ['RA'], compRe: 'disturbo lieve' } }
   ];
 
   function close(a, b, tol) { return a != null && Math.abs(a - b) <= tol; }
@@ -698,6 +757,11 @@
       if (e.sfClassRe) push('Classe S/F ~ ' + e.sfClassRe, res.oxy && new RegExp(e.sfClassRe).test(res.oxy.sfClass), res.oxy && res.oxy.sfClass);
       if (e.gap != null) push('ΔPCO₂ cv-a = ' + e.gap, res.perf && close(res.perf.gap, e.gap, 0.2), res.perf && res.perf.gap);
       if (e.gapRe) push('Interpretazione ΔPCO₂ ' + e.gapRe, res.perf && res.perf.gapInterp.includes(e.gapRe), res.perf && res.perf.gapInterp);
+      if (e.lyte) Object.entries(e.lyte).forEach(([k, v]) => push(`Elettrolita ${k}: ${v}`, res.lytes && res.lytes.some(l => l.code === k && l.status === v), res.lytes && JSON.stringify(res.lytes.filter(l => l.code === k).map(l => l.status))));
+      if (e.clCorrMin != null) push('Cl⁻ corretto > ' + e.clCorrMin, res.clCorr > e.clCorrMin, res.clCorr);
+      if (e.fwd != null) push('Deficit di acqua libera ≈ ' + e.fwd + ' L', res.fwd && close(res.fwd.value, e.fwd, 0.1), res.fwd && res.fwd.value);
+      if (e.noVentGradient) push('Gradiente PaCO₂–EtCO₂ non calcolato su campione venoso', !(res.vent && res.vent.gradient != null), res.vent && res.vent.gradient);
+      if (e.compRe) push('Compenso ~ ' + e.compRe, new RegExp(e.compRe).test(res.compStatus || ''), res.compStatus);
       if (e.stewartNaClNeg) push('Effetto Na–Cl negativo (Stewart)', res.stewart && res.stewart.beNaCl < 0, res.stewart && res.stewart.beNaCl);
       results.push({ id: c.id, name: c.name, pass: checks.every(x => x.pass), checks, diagnosis: res.diagnosis });
     }

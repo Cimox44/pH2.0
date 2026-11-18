@@ -147,7 +147,9 @@ ${T(['Combinazione', 'Pattern EGA', 'Scenario tipico'], [
  ['Acidosi respiratoria + alcalosi metabolica', 'pH ~normale, HCO₃⁻ ↑↑, PaCO₂ ↑↑', 'BPCO in diuretici/steroidi, post-ipercapnica'],
  ['HAGMA + alcalosi metabolica', 'AG ↑ con HCO₃⁻ quasi normale, Δ/Δ > 2', 'DKA con vomito, IRC con aspirazione SNG'],
  ['HAGMA + NAGMA', 'Δ/Δ 0.4–0.8', 'DKA in trattamento con NaCl, diarrea + shock, IRC'],
- ['Triplo disturbo', 'HAGMA + MAlk + RAlk/RA', 'DKA + vomito + sepsi/polmonite']])}`
+ ['Triplo disturbo', 'HAGMA + MAlk + RAlk/RA', 'DKA + vomito + sepsi/polmonite'],
+ ['Acidosi ipercloremica + alcalosi ipoalbuminemica (Stewart)', 'pH e SBE quasi normali, Cl⁻ corretto &gt; 106, effetto Na–Cl negativo, AG basso', 'Paziente ventilato in ICU con carichi di NaCl/NaHCO₃ e albumina bassa: le due componenti si annullano e l\'approccio tradizionale le "nasconde" → inserire albumina']])}
+<div class="pearl"><b>Ipernatriemia e ipercloremia:</b> il Cl⁻ va letto in rapporto al Na⁺. Cl⁻ corretto = Cl⁻ × 140/Na⁺: se è normale, l'ipercloremia è solo concentrazionale (deficit di acqua libera); se resta &gt; 106 l'eccesso di Cl⁻ è reale e acidificante (SID ridotto).</div>`
 },
 {
   key: 'LACT', title: 'Iperlattatemia / acidosi lattica', tag: 'MA',
@@ -198,6 +200,8 @@ const FORMULAS = [
  ['Ventilatory ratio', 'VR = (VE mL/min·PaCO₂) / (PBW·100·37.5)', 'Surrogato dello spazio morto; > 2 prognosi peggiore'],
  ['VE per target PaCO₂', 'VE₂ = VE₁·PaCO₂₁ / PaCO₂₂', 'Assume VCO₂ e VD costanti'],
  ['Frazione di spazio morto alveolare', 'AVDSf = (PaCO₂ − EtCO₂)/PaCO₂', 'Normale < 0,15; gradiente PaCO₂–EtCO₂ 2–5 mmHg. Non equivale al VD/VT totale di Bohr-Enghoff (che richiede la PCO₂ espirata mista e include lo spazio morto anatomico)'],
+ ['Cl⁻ corretto per Na⁺', 'Cl⁻ corr = Cl⁻ × 140 / Na⁺', 'Normale 98–106: separa l\'ipercloremia reale (SID ridotto, acidificante) da quella proporzionale al Na⁺ (Fencl 2000)'],
+ ['Deficit di acqua libera', 'FWD (L) = peso × TBW × (Na⁺/140 − 1)', 'TBW: M 0,6 (≥ 65 anni 0,5) · F 0,5 (≥ 65 anni 0,45). Non include le perdite in corso. Cronica/durata ignota: ≤ 0,5 mmol/L/h (≈ 10–12 mmol/L/24 h)'],
  ['Deficit di bicarbonato', '0.5·peso·(HCO₃⁻ target − HCO₃⁻) · 0.3·peso·|BE|', 'Somministrare ½ e rivalutare']
 ];
 
@@ -209,6 +213,7 @@ const ALGO = `
 <li><b>Compenso</b> — classificazione: non compensato (variabile di compenso normale), parzialmente compensato (si muove ma pH alterato), completamente compensato (pH nel range). Poi <i>appropriatezza</i> con le formule: fuori range = secondo disturbo.</li>
 <li><b>Gap anionico</b> sempre, anche con pH normale; correggerlo per albumina.</li>
 <li><b>Delta gap / Δ-Δ</b> — se AG elevato: cercare NAGMA o alcalosi metabolica associate.</li>
+<li><b>Elettroliti</b> — Na⁺, K⁺, Cl⁻ (e Cl⁻ corretto per Na⁺), Ca²⁺, Mg²⁺, fosfato, glicemia: l'app segnala i valori fuori range e il deficit di acqua libera.</li>
 <li><b>Approfondimenti</b> — gap osmolare (HAGMA non spiegata), UAG (NAGMA), Cl⁻ urinario (alcalosi metabolica), lattati, chetoni, Stewart.</li>
 <li><b>Ossigenazione e ventilazione</b> — P/F, A-a, a/A, S/F, PaCO₂–EtCO₂, VR.</li>
 <li><b>Sintesi clinica</b> — diagnosi integrata, causa probabile, piano terapeutico, controllo EGA.</li>
@@ -262,6 +267,11 @@ const REFS = [
  'Semler MW et al. SMART: Balanced crystalloids vs saline in critically ill adults. N Engl J Med 2018;378:829-39.',
  'Hernández G et al. ANDROMEDA-SHOCK. JAMA 2019;321:654-64.',
  'CLSI C46-A2. Blood gas and pH analysis and related measurements, 2009.',
+ 'Fencl V, Jabor A, Kazda A, Figge J. Diagnosis of metabolic acid–base disturbances in critically ill patients. Am J Respir Crit Care Med 2000;162:2246-51 (doi:10.1164/ajrccm.162.6.9904099).',
+ 'Adrogué HJ, Madias NE. Hypernatremia. N Engl J Med 2000;342:1493-9 (doi:10.1056/NEJM200005183422006).',
+ 'Chacon-Palma G, Teixeira JP, Litvinovich I et al. Relationship between rate of hypernatremia correction and outcomes in hospitalized patients. Kidney360 2025;6(8):1305-16 (doi:10.34067/KID.0000000785).',
+ 'Lee HS, Renjith K, Misbah A et al. Association between rate of hypernatremia correction and mortality. Cureus 2025;17(4):e82558 (doi:10.7759/cureus.82558).',
+ 'Spasovski G et al. Clinical practice guideline on diagnosis and treatment of hyponatraemia. Eur J Endocrinol 2014;170:G1-47 (doi:10.1530/EJE-13-1020).',
  'Deranged Physiology (CICM) e LITFL Critical Care Compendium — regole di Boston/Copenhagen.'
 ];
 
